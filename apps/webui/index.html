@@ -3,335 +3,827 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>汇桥 OS · 本地离线共生智能工作台</title>
+  <title>汇桥 OS · 觉悟赛博本地共生中枢 (v1.0.0)</title>
   <style>
     :root {
-      --bg: #f5f4ef;
-      --surface: #ffffff;
-      --surface-soft: #faf9f5;
-      --border: #e3e0d6;
-      --text: #1f2421;
-      --muted: #666c67;
-      --brand: #235c4b;
-      --brand-light: #e6f2ee;
-      --warn: #9c5718;
-      --warn-bg: #fef5eb;
-      --danger: #a62b2b;
-      --danger-bg: #fdeeee;
-      --radius: 12px;
-      --mono: "Cascadia Code", "Consolas", ui-monospace, monospace;
-      --sans: "HarmonyOS Sans SC", "Microsoft YaHei UI", system-ui, -apple-system, sans-serif;
+      --bg-void: #050608;
+      --bg-obsidian: #0a0c10;
+      --panel-glass: rgba(13, 16, 22, 0.86);
+      --panel-soft: rgba(20, 24, 33, 0.92);
+      --cyber-yellow: #ffd60a;
+      --cyber-yellow-bright: #ffee55;
+      --bodhi-gold: #e5a900;
+      --gold-dim: rgba(255, 214, 10, 0.12);
+      --gold-dim-hover: rgba(255, 214, 10, 0.20);
+      --border-gold: rgba(255, 214, 10, 0.28);
+      --border-subtle: rgba(255, 214, 10, 0.13);
+      --text-main: #f5f2e6;
+      --text-muted: #9c9681;
+      --text-gold: #ffd60a;
+      --emerald: #00e5a3;
+      --danger: #ff3b5c;
+      --warn: #ffaa00;
+      --mono: "JetBrains Mono", "Cascadia Code", "Consolas", "SFMono-Regular", monospace;
+      --sans: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei UI", system-ui, sans-serif;
     }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* 自定义黑金滚动条 */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(5, 6, 8, 0.8); }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 214, 10, 0.32); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--cyber-yellow); }
+
     body {
       font-family: var(--sans);
-      background: var(--bg);
-      color: var(--text);
+      background-color: var(--bg-void);
+      color: var(--text-main);
       height: 100vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      position: relative;
+      background-image:
+        radial-gradient(circle at 50% 0%, rgba(255, 214, 10, 0.11) 0%, transparent 52%),
+        radial-gradient(circle at 85% 90%, rgba(229, 169, 0, 0.07) 0%, transparent 45%),
+        linear-gradient(rgba(255, 214, 10, 0.028) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 214, 10, 0.028) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
     }
+
+    /* 菩提流光微尘背景画布 */
+    #bodhiCanvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.65;
+    }
+
+    /* 顶部赛博扫描金线 */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent 0%, var(--bodhi-gold) 25%, var(--cyber-yellow-bright) 50%, var(--bodhi-gold) 75%, transparent 100%);
+      box-shadow: 0 0 18px var(--cyber-yellow);
+      z-index: 20;
+    }
+
+    @keyframes spinWheel {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes pulseHalo {
+      0%, 100% { box-shadow: 0 0 8px var(--cyber-yellow), 0 0 18px rgba(255, 214, 10, 0.35); opacity: 1; }
+      50% { box-shadow: 0 0 14px var(--cyber-yellow-bright), 0 0 28px rgba(255, 214, 10, 0.65); opacity: 0.82; }
+    }
+
     header {
-      height: 54px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 0 20px;
+      position: relative;
+      z-index: 10;
+      height: 62px;
+      background: rgba(8, 10, 14, 0.92);
+      border-bottom: 1px solid var(--border-gold);
+      padding: 0 22px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      flex-shrink: 0;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 6px 28px rgba(0, 0, 0, 0.65);
     }
-    .brand-group { display: flex; align-items: center; gap: 12px; }
-    .brand-title { font-size: 17px; font-weight: 700; color: var(--brand); letter-spacing: 0.4px; }
-    .pill {
-      font-size: 12px;
-      padding: 3px 10px;
-      border-radius: 999px;
-      background: var(--brand-light);
-      color: var(--brand);
-      font-weight: 600;
-    }
-    .status-dot {
-      display: inline-block;
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: #1f8b5c;
-      margin-right: 6px;
-    }
-    main {
-      flex: 1;
-      display: grid;
-      grid-template-columns: 290px 1fr 340px;
+
+    .brand-group {
+      display: flex;
+      align-items: center;
       gap: 14px;
-      padding: 14px;
-      min-height: 0;
     }
-    .panel {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
+
+    .dharma-emblem {
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid var(--border-gold);
+      background: radial-gradient(circle, rgba(255, 214, 10, 0.16) 0%, rgba(5, 6, 8, 0.9) 72%);
+      box-shadow: 0 0 16px rgba(255, 214, 10, 0.25);
+    }
+
+    .dharma-emblem svg {
+      width: 28px;
+      height: 28px;
+      animation: spinWheel 42s linear infinite;
+    }
+
+    .brand-text-wrap {
       display: flex;
       flex-direction: column;
-      min-height: 0;
+      gap: 2px;
+    }
+
+    .brand-title {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      color: var(--cyber-yellow);
+      text-shadow: 0 0 14px rgba(255, 214, 10, 0.38);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 1.2px;
+      font-family: var(--mono);
+    }
+
+    .pill {
+      font-size: 11px;
+      font-family: var(--mono);
+      padding: 3px 10px;
+      background: var(--gold-dim);
+      color: var(--cyber-yellow);
+      border: 1px solid var(--border-gold);
+      clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+      font-weight: 600;
+      letter-spacing: 0.6px;
+    }
+
+    .pill-lotus {
+      background: rgba(229, 169, 0, 0.16);
+      color: #ffe57f;
+    }
+
+    .telemetry-bar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 12px;
+      font-family: var(--mono);
+      color: var(--text-muted);
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--cyber-yellow);
+      margin-right: 7px;
+      animation: pulseHalo 2.6s ease-in-out infinite;
+    }
+
+    main {
+      position: relative;
+      z-index: 5;
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(245px, 295px) minmax(0, 1fr) minmax(265px, 335px);
+      gap: 14px;
+      padding: 14px 16px;
       overflow: hidden;
     }
-    .panel-header {
-      padding: 12px 15px;
-      border-bottom: 1px solid var(--border);
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--muted);
+
+    .panel {
+      min-width: 0;
+      background: var(--panel-glass);
+      border: 1px solid var(--border-subtle);
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: var(--surface-soft);
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      backdrop-filter: blur(14px);
+      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+      box-shadow: 0 10px 34px rgba(0, 0, 0, 0.6), inset 0 0 24px rgba(255, 214, 10, 0.025);
     }
+
+    /* 赛博面板顶角金边修饰 */
+    .panel::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 72px;
+      height: 2px;
+      background: var(--cyber-yellow);
+      box-shadow: 0 0 10px var(--cyber-yellow);
+      pointer-events: none;
+    }
+
+    .panel-header {
+      padding: 11px 15px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: linear-gradient(90deg, rgba(255, 214, 10, 0.08) 0%, rgba(13, 16, 22, 0.4) 100%);
+      font-size: 12.5px;
+      font-weight: 700;
+      letter-spacing: 0.9px;
+      color: var(--cyber-yellow);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      text-transform: uppercase;
+    }
+
     .panel-body {
-      padding: 12px 15px;
+      padding: 12px 14px;
       overflow-y: auto;
       flex: 1;
+      position: relative;
     }
+
+    /* 左侧创世与演化技能卡 */
     .skill-card {
-      border: 1px solid var(--border);
-      border-radius: 9px;
-      padding: 10px 12px;
+      padding: 11px 12px;
+      border: 1px solid rgba(255, 214, 10, 0.14);
+      border-left: 3px solid rgba(255, 214, 10, 0.45);
       margin-bottom: 9px;
       cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
-      background: var(--surface-soft);
+      transition: all 0.18s ease;
+      background: rgba(17, 20, 28, 0.78);
+      position: relative;
     }
-    .skill-card:hover, .skill-card.active {
-      border-color: var(--brand);
-      background: var(--brand-light);
+
+    .skill-card:hover {
+      border-color: var(--cyber-yellow);
+      border-left-width: 4px;
+      background: rgba(255, 214, 10, 0.09);
+      transform: translateX(2px);
+      box-shadow: 0 0 18px rgba(255, 214, 10, 0.12);
     }
-    .skill-name { font-size: 13.5px; font-weight: 700; margin-bottom: 4px; color: var(--text); }
-    .skill-desc { font-size: 12px; color: var(--muted); line-height: 1.45; }
-    .mode-bar {
+
+    .skill-card.active {
+      border-color: var(--cyber-yellow);
+      border-left: 4px solid var(--cyber-yellow);
+      background: linear-gradient(90deg, rgba(255, 214, 10, 0.18) 0%, rgba(17, 20, 28, 0.88) 100%);
+      box-shadow: 0 0 20px rgba(255, 214, 10, 0.2);
+    }
+
+    .skill-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 5px;
       display: flex;
-      gap: 8px;
-      margin-bottom: 10px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
     }
+
+    .skill-desc {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      line-height: 1.48;
+    }
+
+    /* 中央止观心智操作台 */
+    .composer {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: linear-gradient(180deg, rgba(20, 24, 34, 0.92) 0%, rgba(11, 14, 20, 0.92) 100%);
+    }
+
+    .mode-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
     .mode-btn {
-      flex: 1;
-      padding: 8px 10px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--surface-soft);
+      border: 1px solid rgba(255, 214, 10, 0.18);
+      background: rgba(9, 11, 16, 0.85);
+      padding: 9px 11px;
       cursor: pointer;
       text-align: left;
-      transition: all 0.15s;
+      color: var(--text-main);
+      transition: all 0.18s ease;
+      position: relative;
+      clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
     }
+
+    .mode-btn:hover {
+      border-color: rgba(255, 214, 10, 0.55);
+      background: rgba(255, 214, 10, 0.07);
+    }
+
     .mode-btn.selected {
-      border-color: var(--brand);
-      background: var(--brand-light);
+      border-color: var(--cyber-yellow);
+      background: linear-gradient(135deg, rgba(255, 214, 10, 0.2) 0%, rgba(229, 169, 0, 0.06) 100%);
+      box-shadow: 0 0 18px rgba(255, 214, 10, 0.22), inset 0 0 10px rgba(255, 214, 10, 0.08);
     }
-    .mode-btn strong { display: block; font-size: 13px; color: var(--text); }
-    .mode-btn span { font-size: 11px; color: var(--muted); }
+
+    .mode-code {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--bodhi-gold);
+      letter-spacing: 0.8px;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .mode-btn.selected .mode-code { color: var(--cyber-yellow-bright); }
+
+    .mode-btn strong {
+      display: block;
+      font-size: 13px;
+      color: var(--text-main);
+      margin-bottom: 2px;
+    }
+
+    .mode-btn.selected strong { color: var(--cyber-yellow); }
+
+    .mode-btn span.mode-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: block;
+    }
+
     textarea, input[type="text"] {
       width: 100%;
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      border: 1px solid rgba(255, 214, 10, 0.22);
+      border-radius: 4px;
       padding: 10px 12px;
       font-family: inherit;
       font-size: 13.5px;
-      background: #fff;
-      color: var(--text);
+      background: rgba(5, 7, 10, 0.9);
+      color: var(--text-main);
       outline: none;
+      transition: border-color 0.18s, box-shadow 0.18s;
     }
-    textarea:focus, input[type="text"]:focus { border-color: var(--brand); }
-    .composer {
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--border);
-      background: var(--surface-soft);
+
+    textarea::placeholder, input[type="text"]::placeholder {
+      color: rgba(156, 150, 129, 0.6);
     }
-    .input-row { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
-    .btn {
-      border: none;
-      border-radius: 8px;
-      padding: 9px 16px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      background: var(--brand);
-      color: #fff;
+
+    textarea:focus, input[type="text"]:focus {
+      border-color: var(--cyber-yellow);
+      box-shadow: 0 0 14px rgba(255, 214, 10, 0.22);
     }
-    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
-    .btn-secondary { background: #e7e5dc; color: var(--text); }
-    .btn-danger { background: var(--danger); color: #fff; }
-    .route-banner {
-      padding: 8px 12px;
-      border-radius: 8px;
-      background: var(--brand-light);
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      align-items: center;
+    }
+
+    .cyber-check {
       font-size: 12px;
-      color: var(--brand);
-      margin-bottom: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .cyber-check input { accent-color: var(--cyber-yellow); }
+
+    .btn {
+      background: linear-gradient(135deg, var(--cyber-yellow) 0%, var(--bodhi-gold) 100%);
+      color: #060709;
+      border: none;
+      padding: 9px 18px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.16s ease;
+      clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+      box-shadow: 0 0 16px rgba(255, 214, 10, 0.28);
+    }
+
+    .btn:hover {
+      background: var(--cyber-yellow-bright);
+      box-shadow: 0 0 24px rgba(255, 214, 10, 0.55);
+      transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 214, 10, 0.1);
+      color: var(--cyber-yellow);
+      border: 1px solid var(--border-gold);
+      box-shadow: none;
+      font-weight: 600;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 214, 10, 0.22);
+      color: #fff;
+      box-shadow: 0 0 14px rgba(255, 214, 10, 0.25);
+    }
+
+    .btn-danger {
+      background: rgba(255, 59, 92, 0.16);
+      color: #ff6b84;
+      border: 1px solid rgba(255, 59, 92, 0.5);
+      box-shadow: none;
+    }
+
+    .btn-danger:hover {
+      background: var(--danger);
+      color: #fff;
+      box-shadow: 0 0 16px rgba(255, 59, 92, 0.45);
+    }
+
+    /* 中央禅堂曼荼罗暗纹背景 */
+    .sanctuary-body {
+      position: relative;
+      padding: 16px 18px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .mandala-watermark {
+      position: absolute;
+      right: -40px;
+      bottom: -40px;
+      width: 300px;
+      height: 300px;
+      opacity: 0.045;
+      pointer-events: none;
+      animation: spinWheel 120s linear infinite;
+    }
+
+    .route-banner {
+      padding: 9px 13px;
+      background: rgba(255, 214, 10, 0.08);
+      border: 1px solid var(--border-gold);
+      border-left: 3px solid var(--cyber-yellow);
+      font-size: 12px;
+      font-family: var(--mono);
+      color: var(--cyber-yellow);
+      margin-bottom: 14px;
       display: none;
     }
+
     .output-box {
-      white-space: pre-wrap;
+      position: relative;
+      z-index: 2;
       font-size: 14px;
-      line-height: 1.65;
-      color: var(--text);
+      line-height: 1.72;
+      color: var(--text-main);
+      word-break: break-word;
     }
-    .notes-box {
-      margin-top: 12px;
-      padding: 9px 12px;
-      border-left: 3px solid var(--brand);
-      background: var(--surface-soft);
+
+    .output-box h1, .output-box h2, .output-box h3 {
+      color: var(--cyber-yellow);
+      margin: 12px 0 6px;
+      letter-spacing: 0.6px;
+      text-shadow: 0 0 10px rgba(255, 214, 10, 0.2);
+    }
+    .output-box h1 { font-size: 17px; border-bottom: 1px dashed var(--border-subtle); padding-bottom: 6px; }
+    .output-box h2 { font-size: 15px; }
+    .output-box h3 { font-size: 14px; }
+    .output-box p { margin: 6px 0; }
+    .output-box ul { margin: 6px 0 10px 18px; }
+    .output-box li { margin-bottom: 4px; }
+    .output-box strong { color: #ffe57f; }
+    .output-box code {
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 1px 6px;
+      background: rgba(255, 214, 10, 0.12);
+      color: var(--cyber-yellow-bright);
+      border-radius: 3px;
+    }
+    .output-box pre {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: #06080c;
+      border: 1px solid var(--border-subtle);
+      padding: 10px 12px;
+      overflow-x: auto;
+      margin: 8px 0;
+      color: #e8e4d5;
+    }
+    .output-box table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
       font-size: 12.5px;
-      color: var(--muted);
+      background: rgba(8, 10, 15, 0.82);
+      border: 1px solid var(--border-gold);
+    }
+    .output-box th, .output-box td {
+      border: 1px solid rgba(255, 214, 10, 0.18);
+      padding: 7px 10px;
+      text-align: left;
+    }
+    .output-box th {
+      background: rgba(255, 214, 10, 0.14);
+      color: var(--cyber-yellow);
+      font-weight: 700;
+    }
+
+    .welcome-hero {
+      padding: 18px;
+      border: 1px dashed rgba(255, 214, 10, 0.25);
+      background: rgba(12, 15, 22, 0.65);
+    }
+
+    .welcome-quote {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--cyber-yellow);
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+    }
+
+    .notes-box {
+      position: relative;
+      z-index: 2;
+      margin-top: 14px;
+      padding: 10px 13px;
+      border-left: 3px solid var(--bodhi-gold);
+      background: rgba(229, 169, 0, 0.07);
+      font-size: 12.5px;
+      color: #dfd7be;
       display: none;
     }
+
+    /* 四摄回向反馈栏 */
+    .feedback-deck {
+      position: relative;
+      z-index: 2;
+      display: none;
+      margin-top: 16px;
+      padding: 12px 14px;
+      border: 1px solid var(--border-subtle);
+      background: rgba(9, 11, 16, 0.85);
+    }
+
+    .section-label {
+      font-size: 11.5px;
+      font-weight: 700;
+      font-family: var(--mono);
+      color: var(--cyber-yellow);
+      letter-spacing: 0.8px;
+      margin-bottom: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* 右侧戒律守卫与阿赖耶识记忆 */
     .hitl-card {
-      background: var(--warn-bg);
-      border: 1px solid #ecc69c;
-      border-radius: 9px;
+      background: rgba(255, 170, 0, 0.09);
+      border: 1px solid var(--cyber-yellow);
       padding: 12px;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
       display: none;
+      box-shadow: 0 0 20px rgba(255, 214, 10, 0.16);
     }
-    .hitl-title { font-size: 13px; font-weight: 700; color: var(--warn); margin-bottom: 6px; }
+
+    .hitl-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--cyber-yellow);
+      margin-bottom: 6px;
+    }
+
     pre.diff-view {
       font-family: var(--mono);
       font-size: 11.5px;
-      background: #1d2220;
-      color: #e6ece8;
+      background: #05070a;
+      color: #f3eedc;
+      border: 1px solid var(--border-subtle);
       padding: 9px;
-      border-radius: 6px;
       overflow-x: auto;
       margin: 8px 0;
-      max-height: 180px;
+      max-height: 170px;
     }
+
     .event-item, .run-item {
       font-size: 12px;
-      padding: 7px 8px;
-      border-bottom: 1px dashed var(--border);
-      color: var(--muted);
+      padding: 8px 9px;
+      border-bottom: 1px dashed rgba(255, 214, 10, 0.12);
+      color: var(--text-muted);
+      transition: background 0.15s;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
-    .run-item { cursor: pointer; border-radius: 6px; }
-    .run-item:hover { background: var(--brand-light); color: var(--text); }
+
+    .run-item { cursor: pointer; }
+    .run-item:hover {
+      background: rgba(255, 214, 10, 0.1);
+      color: var(--text-main);
+    }
+
     .tag {
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 10.5px;
       padding: 1px 6px;
-      border-radius: 4px;
-      background: #eceae2;
-      color: var(--text);
+      background: rgba(255, 214, 10, 0.13);
+      border: 1px solid rgba(255, 214, 10, 0.28);
+      color: var(--cyber-yellow);
+    }
+
+    .tag-ok { color: var(--emerald); border-color: rgba(0, 229, 163, 0.4); background: rgba(0, 229, 163, 0.1); }
+    .tag-warn { color: var(--warn); border-color: rgba(255, 170, 0, 0.45); background: rgba(255, 170, 0, 0.12); }
+    .tag-err { color: #ff6b84; border-color: rgba(255, 59, 92, 0.45); background: rgba(255, 59, 92, 0.12); }
+
+    @media (max-width: 1180px) {
+      main { grid-template-columns: 260px 1fr 300px; }
+    }
+    @media (max-width: 920px) {
+      body { height: auto; overflow-y: auto; }
+      main { grid-template-columns: 1fr; height: auto; overflow: visible; }
+      .panel { min-height: 360px; }
     }
   </style>
 </head>
 <body>
+  <canvas id="bodhiCanvas"></canvas>
+
   <header>
     <div class="brand-group">
-      <span class="brand-title">汇桥 OS · HuiQiao Workbench</span>
-      <span class="pill">C00 众生和谐增上</span>
-      <span class="pill" id="versionPill">v1.0.0</span>
+      <!-- 八正道法轮 × 赛博算力星盘矢量印 -->
+      <div class="dharma-emblem" title="八正道法轮 × 本地算力矩阵">
+        <svg viewBox="0 0 64 64" fill="none" stroke="#ffd60a" stroke-width="2">
+          <circle cx="32" cy="32" r="27" stroke-opacity="0.85" />
+          <circle cx="32" cy="32" r="19" stroke-dasharray="4 3" stroke-opacity="0.6" />
+          <circle cx="32" cy="32" r="7" fill="rgba(255,214,10,0.22)" />
+          <line x1="32" y1="5" x2="32" y2="59" />
+          <line x1="5" y1="32" x2="59" y2="32" />
+          <line x1="12.9" y1="12.9" x2="51.1" y2="51.1" />
+          <line x1="51.1" y1="12.9" x2="12.9" y2="51.1" />
+        </svg>
+      </div>
+      <div class="brand-text-wrap">
+        <div class="brand-title">
+          <span>汇桥 OS · HUIQIAO CYBER-BODHI</span>
+          <span class="pill pill-lotus">C00 众生和谐增上</span>
+          <span class="pill" id="versionPill">v1.0.0</span>
+        </div>
+        <div class="brand-sub">AIR-GAPPED SYMBIOTIC INTELLIGENCE // 金刚断网清净界 · 授人以渔</div>
+      </div>
     </div>
-    <div style="font-size:12.5px;color:var(--muted);">
-      <span class="status-dot"></span><span id="healthText">100% 本地离线守护就绪</span>
+
+    <div class="telemetry-bar">
+      <div><span class="status-dot"></span><span id="healthText">正在唤醒本地清净界...</span></div>
     </div>
   </header>
 
   <main>
-    <!-- 左栏：5 创世种子技能 + 历史运行 -->
+    <!-- 左栏：般若技能矩阵 + 金刚持久化轨迹 -->
     <section class="panel">
       <div class="panel-header">
-        <span>创世种子技能 (L0 直通)</span>
+        <span>般若法宝 · 离线技能矩阵 (L0)</span>
         <span id="skillCount" class="tag">0</span>
       </div>
       <div class="panel-body" id="skillList" style="flex: 1.25;"></div>
+
       <div class="panel-header">
-        <span>最近持久化运行 (WAL)</span>
-        <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="loadRuns()">刷新</button>
+        <span>金刚账本 · 持久化轨迹 (WAL)</span>
+        <button class="btn btn-secondary" style="padding:3px 9px;font-size:11px;" onclick="loadRuns()">刷新</button>
       </div>
       <div class="panel-body" id="runList" style="flex: 0.85;"></div>
     </section>
 
-    <!-- 中栏：三档模式切换 + 任务提交 + 共生交付区 -->
+    <!-- 中栏：三摩地心智选择 + 觉悟推演区 + 四摄反馈栏 -->
     <section class="panel">
       <div class="composer">
         <div class="mode-bar">
           <button class="mode-btn selected" data-mode="ask" onclick="selectMode('ask')">
-            <strong>Ask · 只读启发</strong>
-            <span>内核物理禁写，安全问答与摘要</span>
+            <span class="mode-code">MODE 01 // VIPASSANA</span>
+            <strong>Ask · 观照只读</strong>
+            <span class="mode-sub">如镜照物 · 内核物理禁写</span>
           </button>
           <button class="mode-btn" data-mode="plan" onclick="selectMode('plan')">
-            <strong>Plan · 方案预审</strong>
-            <span>必出变更清单与 Diff，确认后执行</span>
+            <span class="mode-code">MODE 02 // SAMKALPA</span>
+            <strong>Plan · 审思预演</strong>
+            <span class="mode-sub">观因知果 · 必出 Diff 预审</span>
           </button>
           <button class="mode-btn" data-mode="execute" onclick="selectMode('execute')">
-            <strong>Execute · 受控执行</strong>
-            <span>授权工作区内执行，高危过证据门</span>
+            <span class="mode-code">MODE 03 // VAJRA ACT</span>
+            <strong>Execute · 金刚行持</strong>
+            <span class="mode-sub">受控沙箱 · 证据闸门护航</span>
           </button>
         </div>
 
-        <textarea id="taskInput" rows="3" placeholder="输入你的需求（例如：提炼本地文档精华、整理目录预览、清洗统计 CSV 表格、今日复盘、或请苏格拉底导师拆解难题）..."></textarea>
+        <textarea id="taskInput" rows="3" placeholder="在此输入心念与任务（按 Ctrl + Enter 极速推演：例如提炼本地文档精华、目录归档预览、清洗统计 CSV 表格、每日清净复盘、或请苏格拉底导师启发拆解难题）..."></textarea>
 
         <div class="input-row">
-          <input type="text" id="attachInput" placeholder="可选：本地文件或文件夹路径（多个用英文分号 ; 分隔）" />
-          <label style="font-size:12px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:4px;">
-            <input type="checkbox" id="applyCheck" /> 实际归档写入
+          <input type="text" id="attachInput" placeholder="可选：本地文件或目录路径（多个以分号 ; 分隔）" />
+          <label class="cyber-check">
+            <input type="checkbox" id="applyCheck" /> 实际归档落盘
           </label>
-          <button class="btn" id="submitBtn" onclick="submitTask()">发送运行</button>
+          <button class="btn" id="submitBtn" onclick="submitTask()">⚡ 启动觉悟推演</button>
         </div>
       </div>
 
-      <div class="panel-body">
+      <div class="sanctuary-body">
+        <!-- 莲花曼荼罗几何暗纹 -->
+        <svg class="mandala-watermark" viewBox="0 0 200 200" fill="none" stroke="#ffd60a" stroke-width="1">
+          <circle cx="100" cy="100" r="92" />
+          <circle cx="100" cy="100" r="68" stroke-dasharray="5 5" />
+          <circle cx="100" cy="100" r="42" />
+          <polygon points="100,12 188,100 100,188 12,100" />
+          <polygon points="38,38 162,38 162,162 38,162" />
+        </svg>
+
         <div class="route-banner" id="routeBanner"></div>
-        <div class="output-box" id="outputBox">欢迎使用汇桥 OS 本地离线共生工作台。
-左侧可一键体验 5 个创世种子技能，所有轨迹与产物均自动保存在本机 SQLite WAL 状态库中，零外部云端依赖。</div>
+
+        <div class="output-box" id="outputBox">
+          <div class="welcome-hero">
+            <div class="welcome-quote">「汇万川以成海，架慈桥以渡人 · 科技为用，觉悟为体」</div>
+            <p>欢迎进入 <strong>汇桥 OS (HuiQiao OS)</strong> 本地离线共生中枢。本系统 100% 运行于您的个人主机，零外部云端追踪、零 CDN 外联。</p>
+            <ul>
+              <li><strong>左栏点选法宝</strong>：一键填入 5 大创世种子技能模板，秒级体验离线摘要、表格精算、护心复盘与苏格拉底启发；</li>
+              <li><strong>三摩地模式锁</strong>：<code>Ask</code> 物理只读、<code>Plan</code> 先审 Unified Diff、<code>Execute</code> 在隔离沙箱内受控执行；</li>
+              <li><strong>四摄回向自演化</strong>：每次运行后可一键「纠偏记忆」或「存为技能种子」，经双闸门验真沉淀为永恒本地智慧。</li>
+            </ul>
+          </div>
+        </div>
+
         <div class="notes-box" id="notesBox"></div>
 
-        <div id="feedbackBar" style="display:none;margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);">
-          <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">1 秒共生反馈（驱动本地记忆与自演化种子）</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
-            <input type="text" id="feedbackNote" placeholder="可选：一句话纠偏偏好或技能种子名称..." style="flex:1;min-width:180px;padding:6px 9px;font-size:12.5px;" />
-            <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;" onclick="sendFeedback('praise')">赞 · 正向强化</button>
-            <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;" onclick="sendFeedback('dislike')">踩 · 记入避坑</button>
-            <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;" onclick="sendFeedback('correct')">纠偏 · 写入偏好</button>
-            <button class="btn" style="padding:5px 10px;font-size:12px;" onclick="sendFeedback('save_skill_seed')">存为技能种子</button>
+        <div id="feedbackBar" class="feedback-deck">
+          <div class="section-label">
+            <span>四摄回向 · 1 秒共生反馈（驱动本地记忆与双闸门自演化）</span>
+            <span class="tag">M10 × M11</span>
           </div>
-          <div id="feedbackStatus" style="font-size:11.5px;color:var(--brand);"></div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:6px;">
+            <input type="text" id="feedbackNote" placeholder="输入一句话正见纠偏或新技能种子名称..." style="flex:1;min-width:190px;padding:7px 10px;font-size:12.5px;" />
+            <button class="btn btn-secondary" style="padding:6px 11px;font-size:12px;" onclick="sendFeedback('praise')">随喜赞叹</button>
+            <button class="btn btn-secondary" style="padding:6px 11px;font-size:12px;" onclick="sendFeedback('dislike')">警策避坑</button>
+            <button class="btn btn-secondary" style="padding:6px 11px;font-size:12px;" onclick="sendFeedback('correct')">正见纠偏</button>
+            <button class="btn" style="padding:6px 12px;font-size:12px;" onclick="sendFeedback('save_skill_seed')">存为技能种子</button>
+          </div>
+          <div id="feedbackStatus" style="font-size:11.5px;color:var(--cyber-yellow);font-family:var(--mono);"></div>
         </div>
       </div>
     </section>
 
-    <!-- 右栏：HITL 人工确认 + 中途改向 + 事件轨迹与产物 -->
+    <!-- 右栏：戒律护法门 + 阿赖耶识记忆 + 技能种子演化 + 因果账本 -->
     <section class="panel">
       <div class="panel-header">
-        <span>安全守卫 · 改向 · 事件账本</span>
-        <span id="activeRunTag" class="tag">无活动运行</span>
+        <span>护法金刚界 · 戒律与阿赖耶识</span>
+        <span id="activeRunTag" class="tag">清净待命</span>
       </div>
       <div class="panel-body">
         <div class="hitl-card" id="hitlCard">
-          <div class="hitl-title">等待人类确认 (HITL 闸门挂起)</div>
-          <div id="hitlReason" style="font-size:12.5px;margin-bottom:6px;"></div>
+          <div class="hitl-title">⚡ 戒律闸门挂起 · 等待人类正念印可 (HITL)</div>
+          <div id="hitlReason" style="font-size:12.5px;margin-bottom:6px;color:var(--text-main);"></div>
           <pre class="diff-view" id="hitlDiff" style="display:none;"></pre>
           <div style="display:flex;gap:8px;margin-top:8px;">
-            <button class="btn" style="flex:1;padding:6px;" onclick="resumeRun(true)">批准并继续</button>
-            <button class="btn btn-danger" style="flex:1;padding:6px;" onclick="resumeRun(false)">驳回取消</button>
+            <button class="btn" style="flex:1;padding:7px;" onclick="resumeRun(true)">印可放行</button>
+            <button class="btn btn-danger" style="flex:1;padding:7px;" onclick="resumeRun(false)">慈悲止回</button>
           </div>
         </div>
 
-        <div style="margin-bottom:14px;">
-          <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">中途改向 (Steer)</div>
+        <div style="margin-bottom:15px;">
+          <div class="section-label"><span>回向导引 · 中途改向 (STEER)</span></div>
           <div style="display:flex;gap:6px;">
-            <input type="text" id="steerInput" placeholder="补充约束或调整方向..." style="padding:6px 9px;font-size:12.5px;" />
-            <button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="sendSteer()">注入</button>
+            <input type="text" id="steerInput" placeholder="为当前运行注入补充约束..." style="padding:6px 9px;font-size:12px;" />
+            <button class="btn btn-secondary" style="padding:6px 11px;font-size:12px;" onclick="sendSteer()">注入</button>
           </div>
         </div>
 
-        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">生成产物 (Artifacts)</div>
-        <div id="artifactList" style="font-size:12px;color:var(--muted);margin-bottom:14px;">暂无产物</div>
-
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-          <span style="font-size:12px;font-weight:700;color:var(--muted);">本地透明记忆 (MEMORY.md)</span>
-          <button class="btn btn-secondary" style="padding:2px 7px;font-size:11px;" onclick="loadMemories()">同步</button>
+        <div style="margin-bottom:15px;">
+          <div class="section-label">
+            <span>阿赖耶识 · 透明记忆 (MEMORY.md)</span>
+            <button class="btn btn-secondary" style="padding:2px 8px;font-size:10.5px;" onclick="loadMemories()">同步</button>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:6px;">
+            <input type="text" id="quickMemInput" placeholder="直接铭刻一条长期偏好..." style="padding:5px 8px;font-size:12px;" />
+            <button class="btn btn-secondary" style="padding:5px 10px;font-size:11.5px;" onclick="quickAddMemory()">铭刻</button>
+          </div>
+          <div id="memoryList" style="font-size:12px;color:var(--text-muted);">暂无记忆条目</div>
         </div>
-        <div id="memoryList" style="font-size:12px;color:var(--muted);margin-bottom:14px;">暂无记忆条目</div>
 
-        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">事件流轨迹 (Append-Only)</div>
+        <div style="margin-bottom:15px;">
+          <div class="section-label">
+            <span>菩提种子 · 双闸门自演化 (M11)</span>
+            <button class="btn btn-secondary" style="padding:2px 8px;font-size:10.5px;" onclick="loadSkillSeeds()">刷新</button>
+          </div>
+          <div id="seedList" style="font-size:12px;color:var(--text-muted);">点击「存为技能种子」可在此一键双闸门演化上线</div>
+        </div>
+
+        <div style="margin-bottom:15px;">
+          <div class="section-label"><span>结集法宝 · 落盘产物 (ARTIFACTS)</span></div>
+          <div id="artifactList" style="font-size:12px;color:var(--text-muted);">暂无产物</div>
+        </div>
+
+        <div class="section-label"><span>因果脉络 · 事件流轨迹 (LEDGER)</span></div>
         <div id="eventList"></div>
       </div>
     </section>
@@ -345,10 +837,78 @@
     const SKILL_TEMPLATES = {
       "genesis-doc-digest": { mode: "ask", text: "请提炼文档精华摘要并列出章节脉络：workspace/CONSTITUTION.md", attach: "workspace/CONSTITUTION.md" },
       "genesis-folder-organizer": { mode: "plan", text: "请扫描目录并输出零删除安全分类方案与 Diff 预览", attach: "docs" },
-      "genesis-table-analyst": { mode: "ask", text: "item,amount,category\n开发板,120,硬件\n传感器,45,硬件\n传感器,45,硬件\n线材,NA,配件", attach: "" },
-      "genesis-daily-reflect": { mode: "ask", text: "今日复盘：完成了统一网关与5个种子技能联调；遇到一处路径白名单小卡点已解决；明天准备推进M08安全沙箱设计，还要整理测试报告。", attach: "" },
-      "genesis-socratic-mentor": { mode: "ask", text: "请用苏格拉底启发式导师方式帮我拆解：独立开发者应该先打磨大而全的平台，还是先交付一个极小但闭环的自用工具？", attach: "" }
+      "genesis-table-analyst": { mode: "ask", text: "item,amount,category\n边缘算力盒,1280,硬件\n温度传感器,45,硬件\n温度传感器,45,硬件\n屏蔽线材,NA,配件", attach: "" },
+      "genesis-daily-reflect": { mode: "ask", text: "今日复盘：完成了汇桥 OS v1.0.0 全栈闭环；解决了一处编码细节卡点；明天准备沉淀常用技能并保持身心清净节奏。", attach: "" },
+      "genesis-socratic-mentor": { mode: "ask", text: "请用苏格拉底启发式导师方式帮我拆解：在 AI 算力狂飙时代，个人如何守住独立思考与内心定力，不被工具异化？", attach: "" }
     };
+
+    function escapeHtml(raw) {
+      return String(raw || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function renderCyberMarkdown(raw) {
+      const safe = escapeHtml(raw);
+      let html = safe.replace(/```([\s\S]*?)```/g, (_, code) => `<pre>${code.trim()}</pre>`);
+      const lines = html.split("\n");
+      const out = [];
+      let inList = false;
+      let tableRows = [];
+      function flushTable() {
+        if (!tableRows.length) return;
+        let tbl = "<table>";
+        tableRows.forEach((cells, idx) => {
+          const tag = idx === 0 ? "th" : "td";
+          tbl += "<tr>" + cells.map(c => `<${tag}>${c}</${tag}>`).join("") + "</tr>";
+        });
+        tbl += "</table>";
+        out.push(tbl);
+        tableRows = [];
+      }
+      for (const ln of lines) {
+        const trimmed = ln.trim();
+        if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+          if (inList) { out.push("</ul>"); inList = false; }
+          const inner = trimmed.slice(1, -1).split("|").map(s => s.trim());
+          if (!inner.every(c => /^[-:\s]+$/.test(c))) {
+            tableRows.push(inner);
+          }
+          continue;
+        }
+        flushTable();
+        if (ln.startsWith("### ")) {
+          if (inList) { out.push("</ul>"); inList = false; }
+          out.push(`<h3>${ln.slice(4)}</h3>`);
+        } else if (ln.startsWith("## ")) {
+          if (inList) { out.push("</ul>"); inList = false; }
+          out.push(`<h2>${ln.slice(3)}</h2>`);
+        } else if (ln.startsWith("# ")) {
+          if (inList) { out.push("</ul>"); inList = false; }
+          out.push(`<h1>${ln.slice(2)}</h1>`);
+        } else if (/^\s*[-*]\s+/.test(ln)) {
+          if (!inList) { out.push("<ul>"); inList = true; }
+          out.push(`<li>${ln.replace(/^\s*[-*]\s+/, "")}</li>`);
+        } else {
+          if (inList) { out.push("</ul>"); inList = false; }
+          if (trimmed === "") out.push("");
+          else out.push(`<p>${ln}</p>`);
+        }
+      }
+      if (inList) out.push("</ul>");
+      flushTable();
+      return out.join("\n")
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/`([^`]+)`/g, "<code>$1</code>");
+    }
+
+    function statusTagClass(st) {
+      if (st === "COMPLETED" || st === "ACTIVE") return "tag tag-ok";
+      if (st === "PAUSED_FOR_HUMAN" || st === "PENDING_REVIEW") return "tag tag-warn";
+      if (st && (st.includes("FAIL") || st.includes("REJECT"))) return "tag tag-err";
+      return "tag";
+    }
 
     function selectMode(mode) {
       currentMode = mode;
@@ -373,29 +933,31 @@
     async function initDashboard() {
       try {
         const h = await (await fetch("/api/health")).json();
-        document.getElementById("versionPill").textContent = h.version;
+        document.getElementById("versionPill").textContent = `v${h.version}`;
         document.getElementById("healthText").textContent =
-          `离线守护开启 · C00(${h.constitution_sha256.slice(0, 8)}) · ${h.active_skills_count} 技能在线`;
+          `AIR-GAPPED 离线清净界 · C00金刚印(${h.constitution_sha256.slice(0, 8)}) · ${h.active_skills_count} 法宝在线`;
       } catch (e) {
-        document.getElementById("healthText").textContent = "本地网关连接异常";
+        document.getElementById("healthText").textContent = "本地网关连接中断";
       }
       await loadSkills();
       await loadRuns();
       await loadMemories();
+      await loadSkillSeeds();
     }
 
     async function loadSkills() {
       const data = await (await fetch("/api/skills")).json();
-      document.getElementById("skillCount").textContent = data.count;
+      const activeSkills = (data.skills || []).filter(s => s.status === "ACTIVE");
+      document.getElementById("skillCount").textContent = activeSkills.length;
       const box = document.getElementById("skillList");
       box.innerHTML = "";
-      data.skills.forEach(s => {
+      activeSkills.forEach(s => {
         const div = document.createElement("div");
-        div.className = "skill-card";
+        div.className = "skill-card" + (s.skill_id === selectedSkillId ? " active" : "");
         div.dataset.id = s.skill_id;
         div.onclick = () => pickSkill(s.skill_id);
-        div.innerHTML = `<div class="skill-name">${s.name} <span class="tag">${s.verifiability}</span></div>
-                         <div class="skill-desc">${s.description}</div>`;
+        div.innerHTML = `<div class="skill-name"><span>${escapeHtml(s.name)}</span><span class="tag">${escapeHtml(s.verifiability)}</span></div>
+                         <div class="skill-desc">${escapeHtml(s.description)}</div>`;
         box.appendChild(div);
       });
     }
@@ -403,12 +965,16 @@
     async function loadRuns() {
       const data = await (await fetch("/api/runs?limit=12")).json();
       const box = document.getElementById("runList");
-      box.innerHTML = data.runs.length ? "" : "<div class='event-item'>暂无运行记录</div>";
+      box.innerHTML = data.runs.length ? "" : "<div class='event-item'>尚无推演因果记录</div>";
       data.runs.forEach(r => {
         const d = document.createElement("div");
         d.className = "run-item";
         d.onclick = () => inspectRun(r.run_id);
-        d.innerHTML = `<strong>${r.run_id}</strong> <span class="tag">${r.status}</span><br/><span>${r.flow_name}</span>`;
+        d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+                         <strong style="color:var(--text-main);font-family:var(--mono);font-size:11.5px;">${escapeHtml(r.run_id)}</strong>
+                         <span class="${statusTagClass(r.status)}">${escapeHtml(r.status)}</span>
+                       </div>
+                       <div style="font-size:11px;">${escapeHtml(r.flow_name)}</div>`;
         box.appendChild(d);
       });
     }
@@ -423,16 +989,16 @@
       if (run.route_decision) {
         const rd = run.route_decision;
         rb.style.display = "block";
-        rb.textContent = `路由通道: ${rd.channel} | 交互姿态: ${rd.interaction_mode} | 置信度: ${rd.confidence} | 依据: ${rd.rationale}`;
+        rb.textContent = `[般若路由] 通道=${rd.channel} | 共生姿态=${rd.interaction_mode} | 置信度=${rd.confidence} | 判据=${rd.rationale}`;
       }
 
-      document.getElementById("outputBox").textContent =
-        run.summary || run.error || (run.pending_interrupt ? run.pending_interrupt.reason : "执行完成");
+      const rawOut = run.summary || run.error || (run.pending_interrupt ? run.pending_interrupt.reason : "推演圆满完成");
+      document.getElementById("outputBox").innerHTML = renderCyberMarkdown(rawOut);
 
       const nb = document.getElementById("notesBox");
       if (run.model_notes) {
         nb.style.display = "block";
-        nb.textContent = `透明说明：${run.model_notes}`;
+        nb.textContent = `【透明法印说明】${run.model_notes}`;
       } else {
         nb.style.display = "none";
       }
@@ -451,14 +1017,16 @@
 
       const artBox = document.getElementById("artifactList");
       if (run.artifacts && run.artifacts.length) {
-        artBox.innerHTML = run.artifacts.map(a => `<div>• <code>${a.name}</code><br/><span style="font-size:11px;">${a.file_path}</span></div>`).join("");
+        artBox.innerHTML = run.artifacts.map(a =>
+          `<div class="event-item"><strong style="color:var(--cyber-yellow);">${escapeHtml(a.name)}</strong><br/><span style="font-size:10.5px;font-family:var(--mono);">${escapeHtml(a.file_path)}</span></div>`
+        ).join("");
       } else {
         artBox.textContent = "暂无落盘产物";
       }
 
       const evBox = document.getElementById("eventList");
       evBox.innerHTML = (run.events || []).map(ev =>
-        `<div class="event-item"><span class="tag">${ev.event_type}</span> ${ev.node_id || ""}</div>`
+        `<div class="event-item"><span class="tag">${escapeHtml(ev.event_type)}</span> <span>${escapeHtml(ev.node_id || "")}</span></div>`
       ).join("");
     }
 
@@ -479,7 +1047,7 @@
 
       const btn = document.getElementById("submitBtn");
       btn.disabled = true;
-      btn.textContent = "运行中...";
+      btn.textContent = "⚡ 觉悟推演中...";
       try {
         const res = await fetch("/api/tasks", {
           method: "POST",
@@ -491,7 +1059,7 @@
         await loadRuns();
       } finally {
         btn.disabled = false;
-        btn.textContent = "发送运行";
+        btn.textContent = "⚡ 启动觉悟推演";
       }
     }
 
@@ -530,7 +1098,7 @@
       const noteEl = document.getElementById("feedbackNote");
       const note = noteEl.value.trim();
       if (kind === "correct" && !note) {
-        document.getElementById("feedbackStatus").textContent = "请先在输入框填写一句话纠偏内容。";
+        document.getElementById("feedbackStatus").textContent = "⚠ 请先在左侧输入框填写一句话正见纠偏内容";
         return;
       }
       const res = await fetch(`/api/runs/${currentRunId}/feedback`, {
@@ -542,12 +1110,26 @@
       if (res.ok) {
         noteEl.value = "";
         document.getElementById("feedbackStatus").textContent =
-          `已记录 [${data.kind}] (${data.elapsed_ms}ms)` + (data.created_seed_id ? ` · 技能种子 ${data.created_seed_id}` : "");
+          `✦ 已铭刻回向 [${data.kind}] (${data.elapsed_ms}ms)` + (data.created_seed_id ? ` · 菩提种子 ${data.created_seed_id}` : "");
         await loadMemories();
+        await loadSkillSeeds();
         await inspectRun(currentRunId);
       } else {
         document.getElementById("feedbackStatus").textContent = data.detail || "反馈提交失败";
       }
+    }
+
+    async function quickAddMemory() {
+      const inp = document.getElementById("quickMemInput");
+      const content = inp.value.trim();
+      if (!content) return;
+      await fetch("/api/memory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, layer: "core" })
+      });
+      inp.value = "";
+      await loadMemories();
     }
 
     async function loadMemories() {
@@ -555,13 +1137,13 @@
       const data = await (await fetch("/api/memory?top_k=8")).json();
       const box = document.getElementById("memoryList");
       if (!data.memories || !data.memories.length) {
-        box.textContent = "暂无活跃记忆（可通过纠偏写入或编辑 MEMORY.md）";
+        box.textContent = "识海清净暂无条目（可上方铭刻或手改 MEMORY.md）";
         return;
       }
       box.innerHTML = data.memories.map(m =>
         `<div class="event-item" style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start;">
-           <span><span class="tag">${m.layer}</span> ${m.content}</span>
-           <button class="btn btn-secondary" style="padding:1px 6px;font-size:10.5px;" onclick="forgetMemory('${m.memory_id}')">遗忘</button>
+           <span style="color:var(--text-main);"><span class="tag">${escapeHtml(m.layer)}</span> ${escapeHtml(m.content)}</span>
+           <button class="btn btn-secondary" style="padding:2px 7px;font-size:10.5px;" onclick="forgetMemory('${escapeHtml(m.memory_id)}')">遗忘</button>
          </div>`
       ).join("");
     }
@@ -570,6 +1152,90 @@
       await fetch(`/api/memory/${memId}`, { method: "DELETE" });
       await loadMemories();
     }
+
+    async function loadSkillSeeds() {
+      const data = await (await fetch("/api/skill-seeds")).json();
+      const box = document.getElementById("seedList");
+      if (!data.seeds || !data.seeds.length) {
+        box.textContent = "暂无待演化种子（对满意运行点『存为技能种子』）";
+        return;
+      }
+      box.innerHTML = data.seeds.slice(0, 5).map(s =>
+        `<div class="event-item" style="display:flex;justify-content:space-between;gap:6px;align-items:center;">
+           <span style="color:var(--text-main);">${escapeHtml(s.title)}</span>
+           <button class="btn btn-secondary" style="padding:2px 8px;font-size:10.5px;" onclick="evolveSeed('${escapeHtml(s.seed_id)}')">⚡ 双闸门演化</button>
+         </div>`
+      ).join("");
+    }
+
+    async function evolveSeed(seedId) {
+      const res = await fetch(`/api/evolution/seeds/${seedId}/evolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auto_verify: true })
+      });
+      const draft = await res.json();
+      if (!res.ok) {
+        alert(draft.detail || "演化失败");
+        return;
+      }
+      if (draft.status === "PENDING_REVIEW") {
+        const ok = confirm(`菩提种子已通过双闸门（M08沙箱单测 + C00增上审查）！\n技能ID: ${draft.skill_id}\n是否立即印可签发入驻左侧法宝库？`);
+        if (ok) {
+          await fetch(`/api/evolution/drafts/${draft.draft_id}/review`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ approved: true, reviewer: "cyber_bodhi_webui" })
+          });
+          await initDashboard();
+        }
+      } else {
+        alert(`双闸门拦截: status=${draft.status}\n说明: ${draft.review_note}`);
+      }
+    }
+
+    document.getElementById("taskInput").addEventListener("keydown", e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        submitTask();
+      }
+    });
+
+    /* 菩提金尘粒子微动效（纯本地 Canvas，低功耗 30fps 柔和上浮） */
+    (function initBodhiSparks() {
+      const canvas = document.getElementById("bodhiCanvas");
+      const ctx = canvas.getContext("2d");
+      let w = 0, h = 0;
+      const particles = [];
+      function resize() {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+      }
+      window.addEventListener("resize", resize);
+      resize();
+      for (let i = 0; i < 28; i++) {
+        particles.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          r: Math.random() * 1.6 + 0.5,
+          vy: -(Math.random() * 0.32 + 0.12),
+          alpha: Math.random() * 0.55 + 0.15
+        });
+      }
+      function draw() {
+        ctx.clearRect(0, 0, w, h);
+        for (const p of particles) {
+          p.y += p.vy;
+          if (p.y < -6) { p.y = h + 6; p.x = Math.random() * w; }
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 214, 10, ${p.alpha})`;
+          ctx.fill();
+        }
+        requestAnimationFrame(draw);
+      }
+      draw();
+    })();
 
     initDashboard();
   </script>

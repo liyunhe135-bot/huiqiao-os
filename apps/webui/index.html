@@ -313,6 +313,62 @@
       background: rgba(255, 214, 10, 0.03);
     }
 
+    /* 冷静 6 关场景流程图 & 航空母舰温和刹车弹窗 */
+    .gate-flow-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+      padding: 8px 10px;
+      background: rgba(255, 214, 10, 0.05);
+      border: 1px solid var(--border-subtle);
+      font-size: 11.5px;
+    }
+
+    .gate-node {
+      padding: 3px 8px;
+      border: 1px solid var(--border-subtle);
+      background: rgba(10, 13, 20, 0.9);
+      color: var(--text-muted);
+    }
+
+    .gate-node.focus {
+      border-color: var(--cyber-yellow);
+      color: var(--cyber-yellow);
+      box-shadow: 0 0 10px rgba(255, 214, 10, 0.25);
+      font-weight: 700;
+    }
+
+    .gate-node.done {
+      border-color: var(--emerald);
+      color: var(--emerald);
+      background: rgba(52, 211, 153, 0.12);
+    }
+
+    .calm-modal-mask {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background: rgba(3, 5, 8, 0.84);
+      backdrop-filter: blur(8px);
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .calm-modal-card {
+      width: min(740px, 100%);
+      max-height: 90vh;
+      overflow: auto;
+      background: #0a0d14;
+      border: 1.5px solid var(--cyber-yellow);
+      box-shadow: 0 0 42px rgba(255, 214, 10, 0.28);
+      padding: 20px 22px;
+      color: var(--text-main);
+    }
+
     .status-dot {
       display: inline-block;
       width: 9px;
@@ -834,6 +890,7 @@
       <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" title="管理防偏移与编码踩坑铁律，每次推理自动挂载防复发" onclick="openTrinityHub('experiences')">📚 经验防坑库 <span id="hdrExpCnt" class="tag" style="margin-left:3px;">0</span></button>
       <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" title="查看当前不断档项目会话链、滚动摘要与绑定代码产物" onclick="openTrinityHub('context')">🔗 上下文链</button>
       <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" title="按八大架构与沟通契约铁律实时自动诊测、输出原始vs高纯度优化对比并一键分享（85%纯规则0显存 + 15%可选本地模型点睛）" onclick="openCoachPanel(false)">🧭 八律教练 <span id="hdrCoachScore" class="tag tag-ok" style="margin-left:3px;">待诊</span></button>
+      <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" title="国际顶级 PRD 6 关冷静自检图（重点盯防：③故事地图 V0.1 纵切 + ④Non-Goals 边界红线）" onclick="toggleCalmSixPanel()">🧘 冷静 6 关 <span id="hdrCalmProg" class="tag" style="margin-left:3px;">0/6</span></button>
       <button class="btn btn-secondary" id="termModeBtn" style="padding:4px 9px;font-size:11.5px;" title="在『大众科技白话』与『禅意觉悟术语（附白话悬停解释）』之间一键切换" onclick="toggleTerminologyMode()">🌐 语境: 大众白话</button>
       <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" onclick="toggleGuide()">📖 怎么用</button>
     </div>
@@ -940,6 +997,22 @@
           <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
             <button class="btn" style="padding:5px 12px;font-size:12px;" onclick="fillCodingDemo(true)">📐 体验「先设计规格 → 再构建运行」：《俱舍诵疏》打卡小程序</button>
           </div>
+        </div>
+
+        <!-- 🧘 冷静 6 关 · 国际顶级 PRD 规律场景自检卡片（重点盯防：反航空母舰） -->
+        <div class="trinity-hub-panel" id="calmSixPanel">
+          <div class="delivery-tab-bar" style="justify-content:space-between;align-items:center;padding:6px 10px;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <strong style="color:var(--cyber-yellow);font-size:13.5px;">🧘 冷静 6 关 · PRD 六大权威规律场景图 & 反上头自检</strong>
+              <span class="tag tag-warn">★ 个人重点盯防：③故事地图纵切 V0.1 + ④写死 Non-Goals</span>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="resetCalmSixChecks()">重置勾选</button>
+              <button class="btn" style="padding:3px 9px;font-size:11px;" onclick="openSfdpFromCalmSix()">📐 带着 6 关进深度 PRD 工坊</button>
+              <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="toggleCalmSixPanel()">收起</button>
+            </div>
+          </div>
+          <div class="delivery-tab-body" id="calmSixBody"></div>
         </div>
 
         <!-- 汇桥七律架构教练对比与分享面板（85%纯代码规则0显存 + 15%按需本机模型深度点睛） -->
@@ -2048,12 +2121,23 @@
       }
     }
 
-    async function submitTask() {
+    async function submitTask(bypassBrake = false) {
       const text = document.getElementById("taskInput").value.trim();
       if (!text) return;
       const attachRaw = document.getElementById("attachInput").value.trim();
       const attachments = attachRaw ? attachRaw.split(";").map(s => s.trim()).filter(Boolean) : [];
       const applyChanges = document.getElementById("applyCheck").checked;
+
+      // 🧘 温和智能刹车：命中主人重点盯防的『航空母舰红牌 (L2 RISK)』时，先弹出冷静刹车确认卡（可一键听劝切 V0.1，也保留全量主权）
+      if (!bypassBrake && !selectedSkillId) {
+        if (!latestCoachData || !latestCoachData.comparison || latestCoachData.comparison.original_input !== text) {
+          await runCoachAnalyze(false, false);
+        }
+        if (latestCoachData && latestCoachData.calm_brake && latestCoachData.calm_brake.triggered) {
+          openCalmBrakeModal(latestCoachData);
+          return;
+        }
+      }
 
       const followCtx = document.getElementById("followContextCheck").checked;
       const activeSid = document.getElementById("sessionSelect").value || null;
@@ -2279,7 +2363,143 @@
       draw();
     })();
 
+    // --- 🧘 冷静 6 关互动通关卡 & 航空母舰温和智能刹车 ---
+    const CALM_SIX_KEY = "hq_calm_six_checks_v1";
+    const DEFAULT_CALM_GATES = [
+      { gate: 1, short: "① PR-FAQ", law: "Bezos 逆向工作法 (PR-FAQ)", calm_question: "不讲技术词，普通人 30 秒看懂后真愿意天天用吗？", can_do: "10分钟戳穿伪需求与技术自嗨", cannot_do: "不管技术架构与代码实现", priority_focus: false },
+      { gate: 2, short: "② 四重风险", law: "Cagan 四重风险体检", calm_question: "本地 9B 扛得住、大众看得懂、80%死活剥给代码了吗？", can_do: "开工前排清价值/可用/可行/安全死穴", cannot_do: "本身不画功能切片路径", priority_focus: false },
+      { gate: 3, short: "③★ 故事地图V0.1", law: "Patton 用户故事地图（★头号重点盯防）", calm_question: "今晚 2 小时内必须跑通的 V0.1 最小钢丝是哪 <=3 个点？", can_do: "狠砍航空母舰，立刻打穿可用 V0.1 钢丝", cannot_do: "管不住中途随手加需求的冲动", priority_focus: true },
+      { gate: 4, short: "④★ 边界Non-Goals", law: "PMI-PBA / ISO 29148（★头号重点盯防）", calm_question: "本期坚决不做哪 3 件事（Non-Goals）？及格数字是多少？", can_do: "封死范围蔓延与“好看点”模糊词", cannot_do: "切忌写成 50 页没人看的死 SOP", priority_focus: true },
+      { gate: 5, short: "⑤ 代码契约", law: "Meyer 契约式设计 (DbC)", calm_question: "数据存哪个键、有哪几种状态、必保原文签死了吗？", can_do: "前后端/AI/沙箱 0 误差严格对口", cannot_do: "太技术化，不可直接给外行客户看", priority_focus: false },
+      { gate: 6, short: "⑥ BDD 断言", law: "North 行为驱动断言 (Given-When-Then)", calm_question: "断网、刷新、漏字、写错函数名写进沙箱负例了吗？", can_do: "机器铁面自动验真，杜绝 AI 嘴上糊弄", cannot_do: "无法自动评估主观审美高级感", priority_focus: false }
+    ];
+
+    function getCalmSixChecks() {
+      try { return JSON.parse(localStorage.getItem(CALM_SIX_KEY) || "[]"); } catch (e) { return []; }
+    }
+
+    function toggleCalmGateCheck(gateNo) {
+      let arr = getCalmSixChecks();
+      if (arr.includes(gateNo)) arr = arr.filter(x => x !== gateNo);
+      else arr.push(gateNo);
+      localStorage.setItem(CALM_SIX_KEY, JSON.stringify(arr));
+      renderCalmSixPanel();
+    }
+
+    function resetCalmSixChecks() {
+      localStorage.setItem(CALM_SIX_KEY, "[]");
+      renderCalmSixPanel();
+    }
+
+    function toggleCalmSixPanel() {
+      const p = document.getElementById("calmSixPanel");
+      const open = p.style.display !== "block";
+      p.style.display = open ? "block" : "none";
+      if (open) renderCalmSixPanel();
+    }
+
+    function openSfdpFromCalmSix() {
+      document.getElementById("calmSixPanel").style.display = "none";
+      openSfdpStudio("deep");
+    }
+
+    function renderCalmSixPanel() {
+      const checked = getCalmSixChecks();
+      const progEl = document.getElementById("hdrCalmProg");
+      if (progEl) {
+        progEl.textContent = `${checked.length}/6`;
+        progEl.className = checked.length >= 6 ? "tag tag-ok" : (checked.includes(3) && checked.includes(4) ? "tag tag-warn" : "tag");
+      }
+      const body = document.getElementById("calmSixBody");
+      if (!body) return;
+      const flowHtml = DEFAULT_CALM_GATES.map((g, idx) => {
+        const isDone = checked.includes(g.gate);
+        const cls = "gate-node" + (isDone ? " done" : (g.priority_focus ? " focus" : ""));
+        return `<span class="${cls}">${isDone ? "✅ " : ""}${escapeHtml(g.short)}</span>` + (idx < 5 ? `<span style="color:var(--bodhi-gold);">→</span>` : "");
+      }).join("");
+
+      const cardsHtml = DEFAULT_CALM_GATES.map(g => {
+        const isDone = checked.includes(g.gate);
+        const borderC = isDone ? "var(--emerald)" : (g.priority_focus ? "var(--cyber-yellow)" : "var(--border-gold)");
+        return `<div class="hub-card" style="border-left-color:${borderC};">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+            <label class="cyber-check" style="color:var(--text-main);font-size:12.5px;font-weight:700;">
+              <input type="checkbox" ${isDone ? "checked" : ""} onchange="toggleCalmGateCheck(${g.gate})" />
+              第 ${g.gate} 关 · ${escapeHtml(g.law)}
+            </label>
+            ${g.priority_focus ? `<span class="tag tag-warn">★ 反航空母舰重点盯防</span>` : `<span class="tag">${isDone ? "已冷静核对" : "待自检"}</span>`}
+          </div>
+          <div style="margin-top:4px;font-size:12.5px;color:var(--cyber-yellow);">🧘 冷静反问：${escapeHtml(g.calm_question)}</div>
+          <div style="margin-top:3px;font-size:11.5px;color:var(--text-muted);">
+            <span style="color:var(--emerald);">✅ 能实现：</span>${escapeHtml(g.can_do)} ｜ <span style="color:#ff9b9b;">❌ 不能实现：</span>${escapeHtml(g.cannot_do)}
+          </div>
+        </div>`;
+      }).join("");
+
+      body.innerHTML = `<div class="gate-flow-bar">${flowHtml}</div>${cardsHtml}`;
+    }
+
+    function openCalmBrakeModal(coachData) {
+      const cb = (coachData && coachData.calm_brake) || {};
+      document.getElementById("calmBrakeReason").textContent = cb.reason || "检测到当前需求跨模块过多，建议先纵切 V0.1 最小钢丝闭环！";
+      document.getElementById("calmBrakeV01").textContent = cb.v01_wire_scope || "";
+      document.getElementById("calmBrakeNonGoals").innerHTML = (cb.suggested_non_goals || []).map(x => `<li>${escapeHtml(x)}</li>`).join("");
+      document.getElementById("calmBrakePreview").textContent = cb.v01_wire_prompt || "";
+      document.getElementById("calmBrakeModal").style.display = "flex";
+    }
+
+    function closeCalmBrakeModal() {
+      document.getElementById("calmBrakeModal").style.display = "none";
+    }
+
+    async function acceptCalmSlice(goToSfdp) {
+      if (latestCoachData && latestCoachData.calm_brake && latestCoachData.calm_brake.v01_wire_prompt) {
+        document.getElementById("taskInput").value = latestCoachData.calm_brake.v01_wire_prompt;
+      }
+      closeCalmBrakeModal();
+      await runCoachAnalyze(false, false);
+      if (goToSfdp) {
+        await openSfdpStudio("deep");
+      } else {
+        await submitTask(true);
+      }
+    }
+
+    async function confirmForceFullRun() {
+      closeCalmBrakeModal();
+      await submitTask(true);
+    }
+
     initDashboard();
+    renderCalmSixPanel();
   </script>
+
+  <!-- 🧘 温和智能刹车弹窗（命中航空母舰红牌 L2 RISK 时弹出） -->
+  <div class="calm-modal-mask" id="calmBrakeModal">
+    <div class="calm-modal-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;">
+        <strong style="color:var(--cyber-yellow);font-size:16px;">🧘 冷静 10 秒 · 触发「反航空母舰」温和智能刹车！</strong>
+        <button class="btn btn-secondary" style="padding:3px 9px;font-size:11px;" onclick="closeCalmBrakeModal()">先返回改需求</button>
+      </div>
+      <div id="calmBrakeReason" style="padding:10px 12px;border-left:3px solid var(--danger);background:rgba(255,77,90,0.1);font-size:13px;margin-bottom:12px;"></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-bottom:12px;">
+        <div class="hub-card" style="margin-bottom:0;border-left-color:var(--emerald);">
+          <strong style="color:var(--emerald);font-size:12.5px;">✂️ 推荐 V0.1 最小钢丝闭环（今晚立刻跑通）</strong>
+          <div id="calmBrakeV01" style="font-size:12.5px;margin-top:5px;"></div>
+        </div>
+        <div class="hub-card" style="margin-bottom:0;border-left-color:var(--cyber-yellow);">
+          <strong style="color:var(--cyber-yellow);font-size:12.5px;">🚫 建议写死为本期 Non-Goals（留作后续积木）</strong>
+          <ul id="calmBrakeNonGoals" style="margin:5px 0 0 18px;font-size:12.5px;"></ul>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">听劝后将自动替换为您输入框的精简 V0.1 钢丝指令（完整保留您的原始大想法背景）：</div>
+      <pre id="calmBrakePreview" style="max-height:130px;overflow:auto;white-space:pre-wrap;word-break:break-word;background:#05070a;border:1px solid var(--border-subtle);padding:10px;font-size:12px;margin:0 0 14px 0;"></pre>
+      <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-secondary" onclick="confirmForceFullRun()" title="尊重人类主权，跳过本次刹车直接按原始完整输入运行">🔥 坚持按原全量直接执行</button>
+        <button class="btn btn-secondary" onclick="acceptCalmSlice(false)">⚡ 听劝：用 V0.1 直接构建</button>
+        <button class="btn" onclick="acceptCalmSlice(true)">✂️ 听劝：切 V0.1 并进双视角 PRD 工坊（推荐）</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

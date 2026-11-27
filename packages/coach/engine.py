@@ -117,11 +117,17 @@ class LawCoachEngine:
         l1_fix = "将存储、统计、遮罩、日期、筛选等 80% 刚性逻辑固定给代码/L0 技能；仅将释义、创意或初版生成留给 AI。"
 
         # ------------------------------------------------------------------
-        # L2 · 原子乐高复利律（防航空母舰 + 复用体检）
+        # L2 · 原子乐高复利律（防航空母舰 + 复用体检；自动排除『不做/Non-Goals』否定句防误报！）
         # ------------------------------------------------------------------
-        hit_domains = [label for pat, label in _OVERSIZE_DOMAINS if re.search(pat, raw, re.I)]
-        clause_cnt = len([s for s in re.split(r"[，,。；;\n]+", raw) if len(s.strip()) >= 4])
-        is_oversized = len(hit_domains) >= 3 or (len(raw) > 260 and clause_cnt >= 10)
+        positive_scope = re.sub(
+            r"(?:【[^】]*(?:Non-Goals|不做)[^】]*】|(?:暂不做|坚决不做|不做|不要|严禁|禁止|排除|不含|Non-Goals?)[^，,。；;\n]*)",
+            " ",
+            raw,
+            flags=re.I,
+        )
+        hit_domains = [label for pat, label in _OVERSIZE_DOMAINS if re.search(pat, positive_scope, re.I)]
+        clause_cnt = len([s for s in re.split(r"[，,。；;\n]+", positive_scope) if len(s.strip()) >= 4])
+        is_oversized = len(hit_domains) >= 3 or (len(positive_scope) > 260 and clause_cnt >= 10)
 
         reusable_skills: list[str] = []
         for s in skills:
@@ -335,8 +341,85 @@ class LawCoachEngine:
             {"law_id": "L8", "name": "沟通契约与定性/定量边界律 (Turn-0)", "status": l8_status, "score": l8_score, "finding": l8_finding, "actionable_fix": l8_fix},
         ]
 
-        overall_score = round(sum(item["score"] for item in laws) / len(laws))
+        # 结合主人重点盯防盲区：命中 L2 航空母舰红牌时给予 L2 双倍权重，拉响冷静提醒！
+        weighted_sum = sum(item["score"] * (2 if (item["law_id"] == "L2" and is_oversized) else 1) for item in laws)
+        weighted_cnt = len(laws) + (1 if is_oversized else 0)
+        overall_score = round(weighted_sum / weighted_cnt)
         grade = "卓越就绪" if overall_score >= 90 else ("良好可用" if overall_score >= 78 else "建议先采纳优化再执行")
+
+        # 构建 V0.1 最小钢丝一键切片 Prompt（供『🧘 温和智能刹车确认卡』一键听劝套用）
+        v01_non_goals = later_bricks[:4] if later_bricks else ["云端多用户账号", "商业支付交易", "复杂多端后台大屏"]
+        v01_wire_prompt = (
+            f"【V0.1 最小钢丝闭环（已冷静听劝切片）】先只打穿核心单一场景：{hit_domains[0] if hit_domains else (raw[:36] or '核心单点小工具')}。\n"
+            f"【本期坚决不做 Non-Goals】暂不做：{'、'.join(v01_non_goals)}（留作 V0.2+ 后续乐高积木逐步拼接）。\n"
+            f"【定量与契约红线】单文件 100% 离线零外链 CDN、核心闭环 <=2 次点击、localStorage 刷新零丢失、按钮默认大众白话。\n"
+            f"【原始大构想背景参考】{raw}"
+        )
+
+        six_gates_checklist = [
+            {
+                "gate": 1,
+                "law": "Bezos PR-FAQ (逆向工作法)",
+                "calm_question": "不讲技术词，普通人 30 秒看懂后真愿意天天用吗？",
+                "can_do": "10分钟戳穿伪需求与技术自嗨",
+                "cannot_do": "不管技术架构与代码实现细节",
+                "priority_focus": False,
+            },
+            {
+                "gate": 2,
+                "law": "Cagan 四重风险 (价值/可用/可行/安全)",
+                "calm_question": "本地 9B 扛得住、大众看得懂、80% 死活剥给代码了吗？",
+                "can_do": "开工前排清四大致命暗礁",
+                "cannot_do": "本身不画功能切片顺序",
+                "priority_focus": False,
+            },
+            {
+                "gate": 3,
+                "law": "Patton 故事地图 (纵切 V0.1 钢丝)",
+                "calm_question": "今晚 2 小时内必须跑通的 V0.1 最小钢丝是哪 <=3 个点？",
+                "can_do": "狠砍航空母舰，立刻打穿可用 V0.1",
+                "cannot_do": "管不住中途随手加需求的人性冲动",
+                "priority_focus": True,
+            },
+            {
+                "gate": 4,
+                "law": "PMI-PBA / ISO 29148 (边界与定量)",
+                "calm_question": "本期坚决不做哪 3 件事（Non-Goals）？及格数字是多少？",
+                "can_do": "封死范围蔓延与模糊形容词",
+                "cannot_do": "切忌写成 50 页没人看的死板 SOP",
+                "priority_focus": True,
+            },
+            {
+                "gate": 5,
+                "law": "Meyer 契约式设计 DbC (代码合同)",
+                "calm_question": "数据存哪个键、有哪几种状态、必保原文签死了吗？",
+                "can_do": "前后端/AI/沙箱 0 误差对口咬合",
+                "cannot_do": "偏技术枯燥，不可直接给外行客户看",
+                "priority_focus": False,
+            },
+            {
+                "gate": 6,
+                "law": "North BDD 断言 (Given-When-Then)",
+                "calm_question": "断网、刷新、漏字、写错函数名写进沙箱负例了吗？",
+                "can_do": "机器铁面自动验真，杜绝 AI 嘴上糊弄",
+                "cannot_do": "无法自动评估主观审美高级感",
+                "priority_focus": False,
+            },
+        ]
+
+        calm_brake = {
+            "triggered": bool(is_oversized),
+            "priority_blind_spot": "反航空母舰：故事地图纵切 V0.1 最小钢丝 + PMI-PBA 写死 Non-Goals",
+            "reason": (
+                f"检测到一次塞入 {len(hit_domains)} 个大模块（{' + '.join(hit_domains)}），命中您重点盯防的『航空母舰烂尾红牌』！"
+                if is_oversized
+                else "当前需求颗粒度聚焦，未触发航空母舰刹车，可顺畅推进。"
+            ),
+            "v01_wire_scope": v01_wire,
+            "suggested_non_goals": v01_non_goals,
+            "v01_wire_prompt": v01_wire_prompt,
+            "six_gates_checklist": six_gates_checklist,
+        }
 
         # ------------------------------------------------------------------
         # 自动生成【高纯度优化版 Prompt】供客户直接左右对比 & 一键套用！
@@ -425,6 +508,7 @@ class LawCoachEngine:
                 "should_crystallize_skill": should_crystallize,
             },
             "ai_deep_advice": ai_deep_advice,
+            "calm_brake": calm_brake,
         }
         result["share_markdown"] = self.render_share_markdown(result)
         return result

@@ -40,6 +40,13 @@ def test_coach_deterministic_seven_laws_oversized_and_jargon_and_destructive(tmp
     # L8 必须抓住缺失定性 Non-Goals / 定量指标 / 数据契约
     assert by_id["L8"]["status"] in ("WARN", "RISK")
     assert "四维沟通契约补齐" in res["comparison"]["optimized_prompt"]
+    # 温和智能刹车载荷验证（反航空母舰加权触发 + 6 关清单 + ③④ 重点盯防）
+    cb = res["calm_brake"]
+    assert cb["triggered"] is True
+    assert "Non-Goals" in cb["v01_wire_prompt"]
+    assert len(cb["six_gates_checklist"]) == 6
+    focus_gates = [g["gate"] for g in cb["six_gates_checklist"] if g["priority_focus"]]
+    assert focus_gates == [3, 4]
     # 必须自动生成高纯度优化版对比文案与分享 Markdown
     assert "V0.1 最小乐高闭环目标" in res["comparison"]["optimized_prompt"]
     assert "原始输入 vs 教练高纯度优化版" in res["share_markdown"]

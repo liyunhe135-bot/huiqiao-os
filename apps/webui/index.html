@@ -209,6 +209,67 @@
       z-index: 3;
     }
 
+    .sfdp-studio {
+      display: none;
+      margin-bottom: 16px;
+      padding: 15px 16px;
+      border: 1px solid var(--cyber-yellow);
+      background: linear-gradient(180deg, rgba(255, 214, 10, 0.09) 0%, rgba(10, 13, 19, 0.96) 100%);
+      box-shadow: 0 0 24px rgba(255, 214, 10, 0.16);
+      position: relative;
+      z-index: 3;
+    }
+
+    .qa-row {
+      margin-bottom: 9px;
+    }
+    .qa-row label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--cyber-yellow);
+      margin-bottom: 4px;
+    }
+
+    .delivery-tabs {
+      display: none;
+      margin-top: 14px;
+      border: 1px solid var(--border-gold);
+      background: rgba(8, 10, 15, 0.9);
+      position: relative;
+      z-index: 3;
+    }
+
+    .delivery-tab-bar {
+      display: flex;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(255, 214, 10, 0.06);
+    }
+
+    .d-tab {
+      padding: 7px 12px;
+      font-size: 12px;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      border-right: 1px solid var(--border-subtle);
+      cursor: pointer;
+    }
+
+    .d-tab.active {
+      background: rgba(255, 214, 10, 0.2);
+      color: var(--cyber-yellow);
+      font-weight: 700;
+    }
+
+    .delivery-tab-body {
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
     .status-dot {
       display: inline-block;
       width: 9px;
@@ -706,68 +767,70 @@
       </div>
       <div class="brand-text-wrap">
         <div class="brand-title">
-          <span>汇桥 OS · HUIQIAO CYBER-BODHI</span>
-          <span class="pill pill-lotus">C00 众生和谐增上</span>
+          <span id="uiBrandTitle">汇桥 OS · HUIQIAO WORKBENCH</span>
+          <span class="pill pill-lotus" title="最高原则：不把人异化为工具附庸，人机互助共同成长">C00 众生和谐增上</span>
           <span class="pill" id="versionPill">v1.0.0</span>
         </div>
-        <div class="brand-sub">AIR-GAPPED SYMBIOTIC INTELLIGENCE // 金刚断网清净界 · 授人以渔</div>
+        <div class="brand-sub" id="uiBrandSub">100% OFFLINE LOCAL AI // 规格先行设计 · 安全沙箱构建 · 五件套可逆交付</div>
       </div>
     </div>
 
     <div class="telemetry-bar">
-      <div><span class="status-dot"></span><span id="healthText">正在唤醒本地清净界...</span></div>
-      <select id="modelSelect" class="model-select" title="切换本机已安装的 Ollama 模型" onchange="switchLocalModel(this.value)">
+      <div><span class="status-dot"></span><span id="healthText">正在连接本地网关...</span></div>
+      <select id="modelSelect" class="model-select" title="切换本机已安装的 Ollama 显卡模型" onchange="switchLocalModel(this.value)">
         <option value="">探活本机模型中...</option>
       </select>
+      <button class="btn btn-secondary" id="termModeBtn" style="padding:4px 10px;font-size:11.5px;" title="在『大众科技白话』与『禅意觉悟术语（附白话悬停解释）』之间一键切换" onclick="toggleTerminologyMode()">🌐 语境: 大众白话</button>
       <button class="btn btn-secondary" style="padding:4px 10px;font-size:11.5px;" onclick="toggleGuide()">📖 怎么用</button>
     </div>
   </header>
 
   <main>
-    <!-- 左栏：般若技能矩阵 + 金刚持久化轨迹 -->
+    <!-- 左栏：技能库 + 持久化运行记录 -->
     <section class="panel">
       <div class="panel-header">
-        <span>般若法宝 · 离线技能矩阵 (L0)</span>
+        <span id="lblSkillHeader" title="已通过测试固化的离线快捷技能，点击即可一键填入">快捷技能库 · 离线直通 (L0)</span>
         <span id="skillCount" class="tag">0</span>
       </div>
       <div class="panel-body" id="skillList" style="flex: 1.25;"></div>
 
       <div class="panel-header">
-        <span>金刚账本 · 持久化轨迹 (WAL)</span>
+        <span id="lblRunHeader" title="保存在本地 SQLite WAL 状态库中的历史任务，断电不丢">历史运行账本 (SQLite WAL)</span>
         <button class="btn btn-secondary" style="padding:3px 9px;font-size:11px;" onclick="loadRuns()">刷新</button>
       </div>
       <div class="panel-body" id="runList" style="flex: 0.85;"></div>
     </section>
 
-    <!-- 中栏：三摩地心智选择 + 觉悟推演区 + 四摄反馈栏 -->
+    <!-- 中栏：三档模式 + SFDP 设计工坊 + 输出与交付包五件套 -->
     <section class="panel">
       <div class="composer">
         <div class="mode-bar">
-          <button class="mode-btn selected" data-mode="ask" onclick="selectMode('ask')">
-            <span class="mode-code">MODE 01 // VIPASSANA</span>
-            <strong>Ask · 观照只读</strong>
-            <span class="mode-sub">如镜照物 · 内核物理禁写</span>
+          <button class="mode-btn selected" data-mode="ask" onclick="selectMode('ask')" title="纯只读分析与问答，系统内核从物理层禁止修改任何本地文件">
+            <span class="mode-code" id="mcAsk">MODE 01 // READ-ONLY</span>
+            <strong id="mtAsk">Ask · 只读问答</strong>
+            <span class="mode-sub" id="msAsk">纯分析启发 · 物理禁写文件</span>
           </button>
-          <button class="mode-btn" data-mode="plan" onclick="selectMode('plan')">
-            <span class="mode-code">MODE 02 // SAMKALPA</span>
-            <strong>Plan · 审思预演</strong>
-            <span class="mode-sub">观因知果 · 必出 Diff 预审</span>
+          <button class="mode-btn" data-mode="plan" onclick="selectMode('plan')" title="先通过澄清问题对齐需求规格（spec/plan/AC）或预览文件 Diff，您拍板后再构建">
+            <span class="mode-code" id="mcPlan">MODE 02 // DESIGN SPEC</span>
+            <strong id="mtPlan">Plan · 规格设计工坊</strong>
+            <span class="mode-sub" id="msPlan">先对齐设计规格 · 确认后再写代码</span>
           </button>
-          <button class="mode-btn" data-mode="execute" onclick="selectMode('execute')">
-            <span class="mode-code">MODE 03 // VAJRA ACT</span>
-            <strong>Execute · 金刚行持</strong>
-            <span class="mode-sub">受控沙箱 · 证据闸门护航</span>
+          <button class="mode-btn" data-mode="execute" onclick="selectMode('execute')" title="在隔离断网安全沙箱内直接编写代码、生成可运行网页应用并产出五件套验收包">
+            <span class="mode-code" id="mcExec">MODE 03 // SANDBOX RUN</span>
+            <strong id="mtExec">Execute · 沙箱构建运行</strong>
+            <span class="mode-sub" id="msExec">隔离沙箱实写代码 · 一步生成可运行应用</span>
           </button>
         </div>
 
-        <textarea id="taskInput" rows="3" placeholder="在此输入心念与任务（按 Ctrl + Enter 极速推演：例如提炼本地文档精华、目录归档预览、清洗统计 CSV 表格、每日清净复盘、或请苏格拉底导师启发拆解难题）..."></textarea>
+        <textarea id="taskInput" rows="3" placeholder="输入您的想法或需求（例如：构建一个背诵俱舍诵疏本地打卡小程序 / 提炼本地文档摘要 / 统计 CSV 表格）..."></textarea>
 
         <div class="input-row">
           <input type="text" id="attachInput" placeholder="可选：本地文件或目录路径（多个以分号 ; 分隔）" />
-          <label class="cyber-check">
-            <input type="checkbox" id="applyCheck" onchange="onApplyCheckChange(this.checked)" /> 实际归档落盘
+          <label class="cyber-check" title="勾选在对本地文件夹归档等场景实际执行移动">
+            <input type="checkbox" id="applyCheck" onchange="onApplyCheckChange(this.checked)" /> 实际落盘
           </label>
-          <button class="btn" id="submitBtn" onclick="submitTask()">⚡ 启动觉悟推演</button>
+          <button class="btn btn-secondary" id="designBtn" onclick="openSfdpStudio()" title="PRD v3.0 推荐：先生成 3~4 个关键设计选项与规格书，您可修改确认后再构建">📐 先设计规格</button>
+          <button class="btn" id="submitBtn" onclick="submitTask()">⚡ 直接构建 / 运行</button>
         </div>
       </div>
 
@@ -783,20 +846,42 @@
 
         <div class="guide-drawer" id="guideDrawer">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <strong style="color:var(--cyber-yellow);font-size:14px;">⚡ 汇桥 OS 三步极速使用说明书（为什么刚才点构建没成功 & 怎么用）</strong>
+            <strong style="color:var(--cyber-yellow);font-size:14px;">⚡ 汇桥 OS 使用指南 & 禅意术语白话对照表</strong>
             <button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="toggleGuide()">收起</button>
           </div>
           <ol style="margin-left:18px;color:var(--text-main);">
-            <li><strong>选对顶部三档心智印</strong>：
-              <br/>• <code>Ask · 观照只读</code>：用于<strong>纯问答、提炼文档、表格统计、苏格拉底启发</strong>（内核物理禁写文件，保护系统安全）；
-              <br/>• <code>Plan · 审思预演</code>：用于<strong>整理文件夹或改文件前先看 Diff 对比</strong>，点「印可放行」才真正移动；
-              <br/>• <code>Execute · 金刚行持</code>：用于<strong>本地编码造物（如构建打卡小程序、写 Python 脚本并运行生成文件）</strong>！<em>（现在只要输入「构建…小程序」系统也会自动帮您切到 Execute 模式！）</em>
+            <li><strong>推荐标准流程（先设计 → 后运行）</strong>：输入想法后点 <strong>「📐 先设计规格」</strong> → 系统列出 3~4 个关键设计问答与《需求规格书 spec.md》（您可直接修改细节） → 点 <strong>「🔨 确认规格并构建运行」</strong> → 自动在隔离沙箱生成应用、逐条核验 AC 并产出<strong>交付包五件套</strong>！</li>
+            <li><strong>语境自由切换（公众友好）</strong>：右上角 <strong>「🌐 语境」</strong> 默认采用<strong>大众科技白话</strong>，任何人一看就懂；若切换到<strong>禅意觉悟语境</strong>，对应含义如下：
+              <br/>• <code>止观 / 审思 / 金刚行持</code> ＝ <code>只读问答 / 规格预审 / 沙箱构建执行</code>
+              <br/>• <code>般若法宝</code> ＝ <code>已验证离线快捷技能</code> ｜ <code>阿赖耶识</code> ＝ <code>可随时手改或遗忘的本地记忆库 (MEMORY.md)</code>
+              <br/>• <code>四摄回向</code> ＝ <code>1秒反馈闭环（赞/踩/纠偏/存种子）</code> ｜ <code>菩提种子</code> ＝ <code>待双闸门测试晋升的新技能候选</code>
             </li>
-            <li><strong>本地编码造物怎么玩</strong>：先确认不要误锁定左侧某个固定技能卡（再点一次已高亮卡片可取消锁定，回到自由路由），选 <code>Execute · 金刚行持</code>，输入需求（如：<code>构建一个背诵俱舍诵疏本地打卡小程序</code>），点 <strong>⚡ 启动觉悟推演</strong>，顶栏选中的本机显卡大模型（如 <code>qwen3.5:9b</code>）会在隔离沙箱内实写代码并生成网页！</li>
-            <li><strong>一键打开生成的小程序</strong>：生成完毕后，正下方会出现绿色闪烁横幅 <strong>「🚀 立即打开本地小程序」</strong>，点开即可独立使用！</li>
           </ol>
           <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn" style="padding:5px 12px;font-size:12px;" onclick="fillCodingDemo()">✨ 一键填入示例：构建背诵《俱舍诵疏》打卡小程序</button>
+            <button class="btn" style="padding:5px 12px;font-size:12px;" onclick="fillCodingDemo(true)">📐 体验「先设计规格 → 再构建运行」：《俱舍诵疏》打卡小程序</button>
+          </div>
+        </div>
+
+        <!-- PRD v3.0 铸泽 SFDP 规格先行交互设计工坊 -->
+        <div class="sfdp-studio" id="sfdpStudio">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <strong style="color:var(--cyber-yellow);font-size:14px;">📐 铸泽 · 规格先行设计工坊（Step 1~2：对齐设计思路，确认后再写代码）</strong>
+            <button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="closeSfdpStudio()">关闭工坊</button>
+          </div>
+          <div id="sfdpQaBox" style="margin-bottom:10px;"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+            <div>
+              <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:4px;">需求规格书 <code>spec.md</code>（可直接编辑微调设计要求）</div>
+              <textarea id="sfdpSpecMd" rows="7" style="font-size:12px;font-family:var(--mono);"></textarea>
+            </div>
+            <div>
+              <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:4px;">技术边界与验收标准 <code>plan.md & AC</code>（构建后沙箱自动逐条核验）</div>
+              <textarea id="sfdpPlanMd" rows="7" style="font-size:12px;font-family:var(--mono);"></textarea>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;">
+            <button class="btn btn-secondary" onclick="refreshSfdpSpec()">🔄 按问答刷新规格</button>
+            <button class="btn" id="sfdpBuildBtn" onclick="runSfdpBuild()">🔨 确认规格 · 启动沙箱构建与五件套交付</button>
           </div>
         </div>
 
@@ -828,42 +913,53 @@
 
         <div class="notes-box" id="notesBox"></div>
 
+        <!-- PRD v3.0 交付包五件套检视面板 -->
+        <div class="delivery-tabs" id="deliveryPackBox">
+          <div class="delivery-tab-bar">
+            <button class="d-tab active" data-dtab="self_check" onclick="switchDeliveryTab('self_check')">④ AC 客观自检报告</button>
+            <button class="d-tab" data-dtab="change_list" onclick="switchDeliveryTab('change_list')">② 变更文件清单</button>
+            <button class="d-tab" data-dtab="log_ref" onclick="switchDeliveryTab('log_ref')">③ 沙箱执行日志</button>
+            <button class="d-tab" data-dtab="acceptance_protocol" onclick="switchDeliveryTab('acceptance_protocol')">⑤ 验收与回滚协议</button>
+          </div>
+          <div class="delivery-tab-body output-box" id="deliveryTabContent"></div>
+        </div>
+
         <div id="feedbackBar" class="feedback-deck">
           <div class="section-label">
-            <span>四摄回向 · 1 秒共生反馈（驱动本地记忆与双闸门自演化）</span>
+            <span id="lblFeedbackHeader" title="1秒轻量反馈：驱动本地长期记忆与新技能自演化">1 秒反馈闭环（驱动本地记忆与技能沉淀）</span>
             <span class="tag">M10 × M11</span>
           </div>
           <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:6px;">
-            <input type="text" id="feedbackNote" placeholder="输入一句话正见纠偏或新技能种子名称..." style="flex:1;min-width:190px;padding:7px 10px;font-size:12.5px;" />
-            <button class="btn btn-secondary" style="padding:6px 11px;font-size:12px;" onclick="sendFeedback('praise')">随喜赞叹</button>
-            <button class="btn btn-secondary" style="padding:6px 11px;font-size:12px;" onclick="sendFeedback('dislike')">警策避坑</button>
-            <button class="btn btn-secondary" style="padding:6px 11px;font-size:12px;" onclick="sendFeedback('correct')">正见纠偏</button>
-            <button class="btn" style="padding:6px 12px;font-size:12px;" onclick="sendFeedback('save_skill_seed')">存为技能种子</button>
+            <input type="text" id="feedbackNote" placeholder="输入一句话纠偏偏好或新技能名称..." style="flex:1;min-width:190px;padding:7px 10px;font-size:12.5px;" />
+            <button class="btn btn-secondary" id="fbBtnPraise" style="padding:6px 11px;font-size:12px;" onclick="sendFeedback('praise')">👍 好用记住</button>
+            <button class="btn btn-secondary" id="fbBtnDislike" style="padding:6px 11px;font-size:12px;" onclick="sendFeedback('dislike')">👎 记入避坑</button>
+            <button class="btn btn-secondary" id="fbBtnCorrect" style="padding:6px 11px;font-size:12px;" onclick="sendFeedback('correct')">✏️ 一句话纠偏</button>
+            <button class="btn" id="fbBtnSeed" style="padding:6px 12px;font-size:12px;" onclick="sendFeedback('save_skill_seed')">🌱 存为技能种子</button>
           </div>
           <div id="feedbackStatus" style="font-size:11.5px;color:var(--cyber-yellow);font-family:var(--mono);"></div>
         </div>
       </div>
     </section>
 
-    <!-- 右栏：戒律护法门 + 阿赖耶识记忆 + 技能种子演化 + 因果账本 -->
+    <!-- 右栏：审批守卫 + 本地透明记忆 + 技能自演化 + 事件账本 -->
     <section class="panel">
       <div class="panel-header">
-        <span>护法金刚界 · 戒律与阿赖耶识</span>
-        <span id="activeRunTag" class="tag">清净待命</span>
+        <span id="lblRightHeader" title="安全闸门、本地可编辑记忆与双闸门技能自演化">安全守卫 · 本地记忆与自演化</span>
+        <span id="activeRunTag" class="tag">就绪待命</span>
       </div>
       <div class="panel-body">
         <div class="hitl-card" id="hitlCard">
-          <div class="hitl-title">⚡ 戒律闸门挂起 · 等待人类正念印可 (HITL)</div>
+          <div class="hitl-title" id="lblHitlTitle">⚡ 人工审批挂起 · 请确认变更预览 (HITL)</div>
           <div id="hitlReason" style="font-size:12.5px;margin-bottom:6px;color:var(--text-main);"></div>
           <pre class="diff-view" id="hitlDiff" style="display:none;"></pre>
           <div style="display:flex;gap:8px;margin-top:8px;">
-            <button class="btn" style="flex:1;padding:7px;" onclick="resumeRun(true)">印可放行</button>
-            <button class="btn btn-danger" style="flex:1;padding:7px;" onclick="resumeRun(false)">慈悲止回</button>
+            <button class="btn" style="flex:1;padding:7px;" onclick="resumeRun(true)">批准并继续</button>
+            <button class="btn btn-danger" style="flex:1;padding:7px;" onclick="resumeRun(false)">驳回取消</button>
           </div>
         </div>
 
         <div style="margin-bottom:15px;">
-          <div class="section-label"><span>回向导引 · 中途改向 (STEER)</span></div>
+          <div class="section-label"><span id="lblSteer" title="向当前任务补充额外要求或修正方向">中途改向 · 补充约束 (STEER)</span></div>
           <div style="display:flex;gap:6px;">
             <input type="text" id="steerInput" placeholder="为当前运行注入补充约束..." style="padding:6px 9px;font-size:12px;" />
             <button class="btn btn-secondary" style="padding:6px 11px;font-size:12px;" onclick="sendSteer()">注入</button>
@@ -872,30 +968,30 @@
 
         <div style="margin-bottom:15px;">
           <div class="section-label">
-            <span>阿赖耶识 · 透明记忆 (MEMORY.md)</span>
+            <span id="lblMemory" title="保存在 workspace/MEMORY.md 中，您可随时用记事本修改或点右侧遗忘">本地长期记忆 (MEMORY.md)</span>
             <button class="btn btn-secondary" style="padding:2px 8px;font-size:10.5px;" onclick="loadMemories()">同步</button>
           </div>
           <div style="display:flex;gap:6px;margin-bottom:6px;">
-            <input type="text" id="quickMemInput" placeholder="直接铭刻一条长期偏好..." style="padding:5px 8px;font-size:12px;" />
-            <button class="btn btn-secondary" style="padding:5px 10px;font-size:11.5px;" onclick="quickAddMemory()">铭刻</button>
+            <input type="text" id="quickMemInput" placeholder="直接写入一条长期偏好..." style="padding:5px 8px;font-size:12px;" />
+            <button class="btn btn-secondary" style="padding:5px 10px;font-size:11.5px;" onclick="quickAddMemory()">保存</button>
           </div>
           <div id="memoryList" style="font-size:12px;color:var(--text-muted);">暂无记忆条目</div>
         </div>
 
         <div style="margin-bottom:15px;">
           <div class="section-label">
-            <span>菩提种子 · 双闸门自演化 (M11)</span>
+            <span id="lblSeed" title="经独立安全沙箱单测 + C00 宪章双闸门验证通过后可升级为永久快捷技能">技能种子 · 双闸门自演化 (M11)</span>
             <button class="btn btn-secondary" style="padding:2px 8px;font-size:10.5px;" onclick="loadSkillSeeds()">刷新</button>
           </div>
           <div id="seedList" style="font-size:12px;color:var(--text-muted);">点击「存为技能种子」可在此一键双闸门演化上线</div>
         </div>
 
         <div style="margin-bottom:15px;">
-          <div class="section-label"><span>结集法宝 · 落盘产物 (ARTIFACTS)</span></div>
+          <div class="section-label"><span id="lblArtifacts">生成文件 · 落盘产物 (ARTIFACTS)</span></div>
           <div id="artifactList" style="font-size:12px;color:var(--text-muted);">暂无产物</div>
         </div>
 
-        <div class="section-label"><span>因果脉络 · 事件流轨迹 (LEDGER)</span></div>
+        <div class="section-label"><span id="lblEvents">执行步骤日志 (EVENT LEDGER)</span></div>
         <div id="eventList"></div>
       </div>
     </section>
@@ -905,6 +1001,87 @@
     let currentMode = "ask";
     let selectedSkillId = null;
     let currentRunId = null;
+    let currentSfdpTaskId = null;
+    let currentSfdpGoal = "";
+    let currentDelivery = null;
+    let termMode = localStorage.getItem("hq_term_mode") || "plain"; // 默认大众科技白话 (plain)，可一键切禅意觉悟 (zen)
+
+    const TERM_PACKS = {
+      plain: {
+        btn: "🌐 语境: 大众白话",
+        brandTitle: "汇桥 OS · HUIQIAO WORKBENCH",
+        brandSub: "100% OFFLINE LOCAL AI // 规格先行设计 · 安全沙箱构建 · 五件套可逆交付",
+        skillHeader: "快捷技能库 · 离线直通 (L0)",
+        runHeader: "历史运行账本 (SQLite WAL)",
+        mcAsk: "MODE 01 // READ-ONLY", mtAsk: "Ask · 只读问答", msAsk: "纯分析启发 · 物理禁写文件",
+        mcPlan: "MODE 02 // DESIGN SPEC", mtPlan: "Plan · 规格设计工坊", msPlan: "先对齐设计规格 · 确认后再写代码",
+        mcExec: "MODE 03 // SANDBOX RUN", mtExec: "Execute · 沙箱构建运行", msExec: "隔离沙箱实写代码 · 一步生成可运行应用",
+        submitBtn: "⚡ 直接构建 / 运行",
+        rightHeader: "安全守卫 · 本地记忆与自演化",
+        steer: "中途改向 · 补充约束 (STEER)",
+        memory: "本地长期记忆 (MEMORY.md)",
+        seed: "技能种子 · 双闸门自演化 (M11)",
+        artifacts: "生成文件 · 落盘产物 (ARTIFACTS)",
+        events: "执行步骤日志 (EVENT LEDGER)",
+        fbHeader: "1 秒反馈闭环（驱动本地记忆与技能沉淀）",
+        fbPraise: "👍 好用记住", fbDislike: "👎 记入避坑", fbCorrect: "✏️ 一句话纠偏", fbSeed: "🌱 存为技能种子"
+      },
+      zen: {
+        btn: "🪷 语境: 禅意觉悟",
+        brandTitle: "汇桥 OS · HUIQIAO CYBER-BODHI",
+        brandSub: "AIR-GAPPED SYMBIOTIC INTELLIGENCE // 金刚断网清净界 · 科技为用，觉悟为体（悬停看白话释义）",
+        skillHeader: "般若法宝 · 离线技能矩阵 (L0)",
+        runHeader: "金刚账本 · 持久化轨迹 (WAL)",
+        mcAsk: "MODE 01 // VIPASSANA (止观=只读分析)", mtAsk: "Ask · 观照只读", msAsk: "如镜照物 · 内核物理禁写",
+        mcPlan: "MODE 02 // SAMKALPA (审思=先做规格设计)", mtPlan: "Plan · 审思设计工坊", msPlan: "观因知果 · 先定规格再动工",
+        mcExec: "MODE 03 // VAJRA ACT (行持=沙箱实写运行)", mtExec: "Execute · 金刚行持", msExec: "受控沙箱 · 证据闸门护航",
+        submitBtn: "⚡ 启动觉悟构建",
+        rightHeader: "护法金刚界 · 戒律与阿赖耶识",
+        steer: "回向导引 · 中途改向 (STEER)",
+        memory: "阿赖耶识 · 长期记忆 (MEMORY.md)",
+        seed: "菩提种子 · 双闸门自演化 (M11)",
+        artifacts: "结集法宝 · 落盘产物 (ARTIFACTS)",
+        events: "因果脉络 · 事件流轨迹 (LEDGER)",
+        fbHeader: "四摄回向 · 1 秒共生反馈（驱动记忆与自演化）",
+        fbPraise: "随喜赞叹 (赞)", fbDislike: "警策避坑 (踩)", fbCorrect: "正见纠偏 (改)", fbSeed: "存为技能种子"
+      }
+    };
+
+    function applyTerminologyMode() {
+      const p = TERM_PACKS[termMode] || TERM_PACKS.plain;
+      document.getElementById("termModeBtn").textContent = p.btn;
+      document.getElementById("uiBrandTitle").textContent = p.brandTitle;
+      document.getElementById("uiBrandSub").textContent = p.brandSub;
+      document.getElementById("lblSkillHeader").textContent = p.skillHeader;
+      document.getElementById("lblRunHeader").textContent = p.runHeader;
+      document.getElementById("mcAsk").textContent = p.mcAsk;
+      document.getElementById("mtAsk").textContent = p.mtAsk;
+      document.getElementById("msAsk").textContent = p.msAsk;
+      document.getElementById("mcPlan").textContent = p.mcPlan;
+      document.getElementById("mtPlan").textContent = p.mtPlan;
+      document.getElementById("msPlan").textContent = p.msPlan;
+      document.getElementById("mcExec").textContent = p.mcExec;
+      document.getElementById("mtExec").textContent = p.mtExec;
+      document.getElementById("msExec").textContent = p.msExec;
+      document.getElementById("submitBtn").textContent = p.submitBtn;
+      document.getElementById("lblRightHeader").textContent = p.rightHeader;
+      document.getElementById("lblSteer").textContent = p.steer;
+      document.getElementById("lblMemory").textContent = p.memory;
+      document.getElementById("lblSeed").textContent = p.seed;
+      document.getElementById("lblArtifacts").textContent = p.artifacts;
+      document.getElementById("lblEvents").textContent = p.events;
+      document.getElementById("lblFeedbackHeader").textContent = p.fbHeader;
+      document.getElementById("fbBtnPraise").textContent = p.fbPraise;
+      document.getElementById("fbBtnDislike").textContent = p.fbDislike;
+      document.getElementById("fbBtnCorrect").textContent = p.fbCorrect;
+      document.getElementById("fbBtnSeed").textContent = p.fbSeed;
+    }
+
+    function toggleTerminologyMode() {
+      termMode = (termMode === "plain") ? "zen" : "plain";
+      localStorage.setItem("hq_term_mode", termMode);
+      applyTerminologyMode();
+    }
 
     const SKILL_TEMPLATES = {
       "genesis-doc-digest": { mode: "ask", text: "请提炼文档精华摘要并列出章节脉络：workspace/CONSTITUTION.md", attach: "workspace/CONSTITUTION.md" },
@@ -1000,15 +1177,116 @@
       el.style.display = (el.style.display === "block") ? "none" : "block";
     }
 
-    function fillCodingDemo() {
+    function fillCodingDemo(openStudio = false) {
       selectedSkillId = null;
       document.querySelectorAll(".skill-card").forEach(el => el.classList.remove("active"));
-      selectMode("execute");
+      selectMode(openStudio ? "plan" : "execute");
       document.getElementById("applyCheck").checked = false;
       document.getElementById("attachInput").value = "";
       document.getElementById("taskInput").value =
-        "构建一个背诵《俱舍诵疏》本地打卡小程序：采用黑金禅意赛博风格，包含八品颂文进度追踪（界品、根品、世间品、业品、随眠品、贤圣品、智品、定品）、今日背诵与复习遍数+1打卡、连续精进天数统计与本地 localStorage 自动保存功能。";
+        "构建一个背诵《俱舍诵疏》本地打卡小程序：采用黑金科技风，包含八品颂文进度追踪（界品、根品、世间品、业品、随眠品、贤圣品、智品、定品）、今日背诵与复习遍数+1打卡、连续精进天数统计与本地 localStorage 自动保存功能。";
       document.getElementById("guideDrawer").style.display = "none";
+      if (openStudio) {
+        openSfdpStudio();
+      }
+    }
+
+    function closeSfdpStudio() {
+      document.getElementById("sfdpStudio").style.display = "none";
+    }
+
+    function collectSfdpQa() {
+      const rows = document.querySelectorAll(".sfdp-qa-input");
+      return Array.from(rows).map(inp => ({
+        id: inp.dataset.qid,
+        question: inp.dataset.question,
+        answer: inp.value.trim()
+      }));
+    }
+
+    async function openSfdpStudio() {
+      const goal = document.getElementById("taskInput").value.trim();
+      if (!goal) {
+        alert("请先在上方输入框填写您的想法或需求，再点击『📐 先设计规格』！");
+        return;
+      }
+      selectMode("plan");
+      const btn = document.getElementById("designBtn");
+      btn.disabled = true;
+      btn.textContent = "📐 生成规格中...";
+      try {
+        const res = await fetch("/api/sfdp/clarify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ goal })
+        });
+        const data = await res.json();
+        currentSfdpTaskId = data.task_id;
+        currentSfdpGoal = goal;
+        const qaBox = document.getElementById("sfdpQaBox");
+        qaBox.innerHTML = (data.clarify_qa || []).map((q, idx) =>
+          `<div class="qa-row">
+             <label>澄清项 ${idx + 1}：${escapeHtml(q.question)}</label>
+             <input type="text" class="sfdp-qa-input" data-qid="${escapeHtml(q.id)}" data-question="${escapeHtml(q.question)}" value="${escapeHtml(q.answer)}" />
+           </div>`
+        ).join("");
+        document.getElementById("sfdpSpecMd").value = data.spec.spec_md || "";
+        document.getElementById("sfdpPlanMd").value = data.spec.plan_md || "";
+        document.getElementById("sfdpStudio").style.display = "block";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "📐 先设计规格";
+      }
+    }
+
+    async function refreshSfdpSpec() {
+      if (!currentSfdpTaskId) return;
+      const res = await fetch("/api/sfdp/spec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task_id: currentSfdpTaskId,
+          goal: currentSfdpGoal,
+          qa_items: collectSfdpQa()
+        })
+      });
+      const spec = await res.json();
+      document.getElementById("sfdpSpecMd").value = spec.spec_md || "";
+      document.getElementById("sfdpPlanMd").value = spec.plan_md || "";
+    }
+
+    async function runSfdpBuild() {
+      if (!currentSfdpTaskId) return;
+      const btn = document.getElementById("sfdpBuildBtn");
+      btn.disabled = true;
+      btn.textContent = "🔨 正在沙箱构建并逐条核验 AC...";
+      try {
+        const res = await fetch("/api/sfdp/build", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            task_id: currentSfdpTaskId,
+            goal: currentSfdpGoal,
+            qa_items: collectSfdpQa(),
+            spec_md: document.getElementById("sfdpSpecMd").value,
+            plan_md: document.getElementById("sfdpPlanMd").value
+          })
+        });
+        const runData = await res.json();
+        document.getElementById("sfdpStudio").style.display = "none";
+        selectMode("execute");
+        renderRunDetail(runData);
+        await loadRuns();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "🔨 确认规格 · 启动沙箱构建与五件套交付";
+      }
+    }
+
+    function switchDeliveryTab(tabKey) {
+      if (!currentDelivery) return;
+      document.querySelectorAll(".d-tab").forEach(b => b.classList.toggle("active", b.dataset.dtab === tabKey));
+      document.getElementById("deliveryTabContent").innerHTML = renderCyberMarkdown(currentDelivery[tabKey] || "");
     }
 
     async function loadLocalModels() {
@@ -1053,11 +1331,12 @@
     }
 
     async function initDashboard() {
+      applyTerminologyMode();
       try {
         const h = await (await fetch("/api/health")).json();
         document.getElementById("versionPill").textContent = `v${h.version}`;
         document.getElementById("healthText").textContent =
-          `AIR-GAPPED 离线清净界 · C00金刚印(${h.constitution_sha256.slice(0, 8)}) · ${h.active_skills_count} 法宝在线`;
+          `离线守护在线 · C00(${h.constitution_sha256.slice(0, 8)}) · ${h.active_skills_count} 技能就绪`;
       } catch (e) {
         document.getElementById("healthText").textContent = "本地网关连接中断";
       }
@@ -1167,6 +1446,16 @@
       evBox.innerHTML = (run.events || []).map(ev =>
         `<div class="event-item"><span class="tag">${escapeHtml(ev.event_type)}</span> <span>${escapeHtml(ev.node_id || "")}</span></div>`
       ).join("");
+
+      const dBox = document.getElementById("deliveryPackBox");
+      if (run.delivery) {
+        currentDelivery = run.delivery;
+        dBox.style.display = "block";
+        switchDeliveryTab("self_check");
+      } else {
+        currentDelivery = null;
+        dBox.style.display = "none";
+      }
     }
 
     async function submitTask() {
@@ -1176,8 +1465,12 @@
       const attachments = attachRaw ? attachRaw.split(";").map(s => s.trim()).filter(Boolean) : [];
       const applyChanges = document.getElementById("applyCheck").checked;
 
-      // 智能防踩坑：勾选实际写入，或明确要求构建小程序/本地编码但仍停留在 Ask 时，自动切至 Execute 沙箱模式
+      // 智能联动：若用户在『Plan · 规格设计工坊』模式下输入构建/编码类需求且无文件附件，直接打开 SFDP 规格工坊对齐设计！
       const isCodingBuild = !selectedSkillId && /(构建|开发|编写|生成一个|写一个|制作).*(小程序|网页|应用|页面|计算器|打卡|脚本|工具|html|python)/i.test(text);
+      if (currentMode === "plan" && isCodingBuild && attachments.length === 0) {
+        await openSfdpStudio();
+        return;
+      }
       if (currentMode === "ask" && (applyChanges || isCodingBuild)) {
         selectMode("execute");
       }

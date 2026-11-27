@@ -102,9 +102,22 @@ slots:
       m07-local-gateway:
         brick_id: "b01-local-gateway"
         layer: "ingress"
-        version: "0.1.0"
+        version: "0.9.0-rc1"
         contract_version: "huiqiao/v1"
         entrypoint: "packages.gateway.service:HuiQiaoService"
         capabilities: ["fastapi_http", "websocket_stream", "typer_cli", "genesis_skills"]
         enabled: false
-        note: "M07 Alpha MVP 统一网关（支持 CLI / FastAPI / WebSocket / 5 创世种子技能）"
+        note: "统一网关（集成 CLI / FastAPI / WebSocket / 沙箱 / 记忆 / 自演化）"
+
+  skill_engine:
+    active: "m11-dual-gate-evolution"
+    bricks:
+      m11-dual-gate-evolution:
+        brick_id: "b09-dual-gate-evolution"
+        layer: "skill_engine"
+        version: "1.0.0"
+        contract_version: "huiqiao/v1"
+        entrypoint: "packages.evolution.engine:SelfEvolutionEngine"
+        capabilities: ["objective_sandbox_gate", "c00_uplift_veto", "human_review", "portable_lite_export"]
+        enabled: false
+        note: "M11 双闸门防坍塌自演化引擎与高配反哺低配普惠技能导出"

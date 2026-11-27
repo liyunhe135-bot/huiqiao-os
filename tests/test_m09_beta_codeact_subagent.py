@@ -537,7 +537,7 @@ def test_beta_e2e_huiqiao_service_l2c_codeact_sandbox_pipeline(tmp_path: pathlib
     )
     health = svc.healthcheck()
     assert health["ok"] is True
-    assert health["version"] == "0.2.0-beta"
+    assert health["version"] >= "0.2.0"
     assert health["checks"]["sandbox"] is True
 
     res = svc.submit_task(

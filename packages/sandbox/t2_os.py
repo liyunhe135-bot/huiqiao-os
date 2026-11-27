@@ -32,7 +32,7 @@ import traceback
 # 预先导入常见安全纯标准库，确保审计钩子启用后正常代码平滑运行
 import base64, collections, csv, datetime, decimal, fractions, functools, hashlib, itertools, math, re, statistics  # noqa: E401, F401
 
-payload = json.loads(sys.stdin.read())
+payload = json.loads(sys.stdin.buffer.read().decode("utf-8"))
 sys.stdin = io.StringIO("")
 
 CODE = payload["code"]
@@ -588,7 +588,7 @@ class T2OsRestrictedSandbox:
             ws_path = resolved_ws.resolve()
 
         try:
-            cmd = [sys.executable, "-I", "-B", "-c", _T2_CHILD_BOOTSTRAP]
+            cmd = [sys.executable, "-I", "-B", "-X", "utf8", "-c", _T2_CHILD_BOOTSTRAP]
             if request.dry_run:
                 return SandboxResult(
                     ok=True,
@@ -596,7 +596,7 @@ class T2OsRestrictedSandbox:
                     tier_used=self.tier,
                     exit_code=0,
                     stdout="[T2 dry_run] 参数与工作区安全校验通过。",
-                    command_preview=[sys.executable, "-I", "-B", "-c", "<t2_audit_bootstrap>"],
+                    command_preview=[sys.executable, "-I", "-B", "-X", "utf8", "-c", "<t2_audit_bootstrap>"],
                     elapsed_ms=round((time.perf_counter() - started) * 1000.0, 2),
                     backend=f"{self.backend_name}-dry-run",
                 )
@@ -615,7 +615,7 @@ class T2OsRestrictedSandbox:
                     "max_write_bytes": request.limits.max_write_bytes,
                     "sensitive_keywords": list(DEFAULT_SENSITIVE_KEYWORDS),
                 },
-                ensure_ascii=False,
+                ensure_ascii=True,
             ).encode("utf-8")
 
             popen_kwargs: dict[str, Any] = {

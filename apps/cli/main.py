@@ -241,6 +241,47 @@ def cmd_memories(
         typer.echo(f"  - [{m['memory_id']}] ({m['layer']}) {m['content']}")
 
 
+@app.command("evolve")
+def cmd_evolve(
+    seed_id: str = typer.Argument(..., help="M10 捕获的技能种子 seed_id"),
+    approve: bool = typer.Option(False, "--approve", help="双闸门通过后由人工当场确认激活"),
+    db: Optional[str] = typer.Option(None, "--db", help="可选自定义状态库路径"),
+) -> None:
+    """从技能种子执行双闸门自演化（M08 沙箱单测 + C00 增上四问），按需经人工签发激活。"""
+    svc = _make_service(db)
+    draft = svc.evolve_from_seed(seed_id, auto_verify=True)
+    typer.echo(
+        f"[双闸门验真] draft_id={draft['draft_id']} | skill_id={draft['skill_id']} | status={draft['status']}"
+    )
+    if approve and draft["status"] == "PENDING_REVIEW":
+        activated = svc.review_evolution_draft(draft["draft_id"], approved=True, reviewer="cli_human")
+        typer.echo(f"[已人工签发上线] skill_id={activated['skill_id']} | status={activated['status']}")
+
+
+@app.command("export-skill")
+def cmd_export_skill(
+    skill_id: str = typer.Argument(..., help="要导出为普惠便携包的 skill_id"),
+    output_zip: str = typer.Argument(..., help="输出 .hqskill.zip 路径"),
+    db: Optional[str] = typer.Option(None, "--db", help="可选自定义状态库路径"),
+) -> None:
+    """将已验真技能打包导出为低配离线设备可复用的 .hqskill.zip 普惠技能包。"""
+    svc = _make_service(db)
+    out = svc.export_portable_skill(skill_id, output_zip)
+    typer.echo(f"[普惠技能已导出] {skill_id} -> {out['zip_path']} (lite_ready={out['card']['portable_lite_ready']})")
+
+
+@app.command("import-skill")
+def cmd_import_skill(
+    zip_path: str = typer.Argument(..., help="待导入的 .hqskill.zip 路径"),
+    overwrite: bool = typer.Option(False, "--overwrite", help="若技能已存在是否允许覆盖"),
+    db: Optional[str] = typer.Option(None, "--db", help="可选自定义状态库路径"),
+) -> None:
+    """安全校验（防 Zip-Slip / SHA-256 / 复跑双闸门）并导入普惠离线技能包。"""
+    svc = _make_service(db)
+    info = svc.import_portable_skill(zip_path, overwrite=overwrite)
+    typer.echo(f"[普惠技能已导入] {info['skill_id']} ({info['name']}) -> {info['installed_dir']}")
+
+
 @app.command("serve")
 def cmd_serve(
     host: str = typer.Option("127.0.0.1", "--host", help="默认严格绑定本机回环地址"),

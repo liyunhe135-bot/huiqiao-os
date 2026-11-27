@@ -21,6 +21,7 @@ from packages.core.contracts import (
     WorkMode,
     new_id,
 )
+from packages.evolution import SelfEvolutionEngine
 from packages.gateway.skills_loader import SkillRegistry
 from packages.governance import GovernanceGuard
 from packages.memory import FeedbackKind, FeedbackLoopService, FileFirstMemoryStore
@@ -110,6 +111,13 @@ class HuiQiaoService:
             db_path=resolved_mem_dir / ".huiqiao" / "memory.db",
         )
         self.feedback = FeedbackLoopService(self.memory)
+        self.evolution = SelfEvolutionEngine(
+            skills_root=self.skills.skills_root,
+            drafts_dir=resolved_mem_dir / ".huiqiao" / "evolution_drafts",
+            backups_dir=resolved_mem_dir / ".huiqiao" / "skill_backups",
+            sandbox=self.sandbox,
+            skill_registry=self.skills,
+        )
         self.capability_profile = capability_profile
 
     def healthcheck(self) -> dict[str, Any]:
@@ -122,11 +130,12 @@ class HuiQiaoService:
             "semantic_worker": self.semantic_worker.healthcheck(),
             "sandbox": self.sandbox.healthcheck(),
             "memory": self.memory.healthcheck(),
+            "evolution": self.evolution.healthcheck(),
             "genesis_skills_ready": len(active_skills) >= 5,
         }
         return {
             "ok": all(checks.values()),
-            "version": "0.2.0-beta",
+            "version": "0.9.0-rc1",
             "offline_only": self.guard.offline_only,
             "constitution_version": self.constitution.version,
             "constitution_sha256": self.constitution.sha256[:16],
@@ -722,6 +731,74 @@ class HuiQiaoService:
 
     def list_skill_seeds(self) -> list[dict[str, Any]]:
         return [s.model_dump(mode="json") for s in self.feedback.list_skill_seeds()]
+
+    # --- M11 双闸门防坍塌自演化与普惠导出服务入口 ---
+    def _refresh_router(self) -> None:
+        self.skills.reload()
+        self.router = HybridRouter(skills=self.skills.list_manifests(active_only=True))
+
+    def list_evolution_drafts(self) -> list[dict[str, Any]]:
+        return [d.model_dump(mode="json") for d in self.evolution.list_drafts()]
+
+    def evolve_from_seed(
+        self,
+        seed_id: str,
+        *,
+        skill_id_override: str | None = None,
+        auto_verify: bool = True,
+    ) -> dict[str, Any]:
+        seed_map = {s.seed_id: s for s in self.feedback.list_skill_seeds()}
+        seed = seed_map.get(seed_id)
+        if seed is None:
+            raise KeyError(f"未找到技能种子: {seed_id}")
+        draft = self.evolution.draft_from_seed(seed, skill_id_override=skill_id_override)
+        if auto_verify:
+            draft = self.evolution.verify_draft(draft.draft_id)
+        return draft.model_dump(mode="json")
+
+    def review_evolution_draft(
+        self,
+        draft_id: str,
+        *,
+        approved: bool = True,
+        reviewer: str = "human",
+        review_note: str = "",
+    ) -> dict[str, Any]:
+        draft = self.evolution.activate_draft(
+            draft_id,
+            approved=approved,
+            reviewer=reviewer,
+            review_note=review_note,
+        )
+        if approved:
+            self._refresh_router()
+        return draft.model_dump(mode="json")
+
+    def rollback_skill(self, skill_id: str) -> dict[str, Any]:
+        res = self.evolution.rollback_skill(skill_id)
+        self._refresh_router()
+        return res
+
+    def export_portable_skill(
+        self,
+        skill_id: str,
+        output_zip: pathlib.Path | str,
+    ) -> dict[str, Any]:
+        card = self.evolution.export_skill(skill_id, output_zip)
+        return {
+            "zip_path": str(pathlib.Path(output_zip).resolve()),
+            "card": card.model_dump(mode="json"),
+        }
+
+    def import_portable_skill(
+        self,
+        zip_path: pathlib.Path | str,
+        *,
+        overwrite: bool = False,
+    ) -> dict[str, Any]:
+        info = self.evolution.import_skill(zip_path, overwrite=overwrite)
+        self._refresh_router()
+        return info
 
     def list_recent_runs(self, limit: int = 20) -> list[dict[str, Any]]:
         return self.store.list_runs(limit=limit)

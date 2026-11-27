@@ -52,6 +52,21 @@ class MemoryUpdateRequest(BaseModel):
     topic_key: str | None = Field(default=None)
 
 
+class EvolveSeedRequest(BaseModel):
+    skill_id_override: str | None = Field(default=None)
+    auto_verify: bool = Field(default=True)
+
+
+class ReviewDraftRequest(BaseModel):
+    approved: bool = Field(default=True)
+    reviewer: str = Field(default="human")
+    review_note: str = Field(default="")
+
+
+class ExportSkillRequest(BaseModel):
+    output_zip: str = Field(..., min_length=1)
+
+
 def create_app(
     service: HuiQiaoService | None = None,
     *,
@@ -66,7 +81,7 @@ def create_app(
 
     app = FastAPI(
         title="汇桥 OS (HuiQiao OS) 本地共生智能网关",
-        version="0.1.0-alpha",
+        version="0.9.0-rc1",
         docs_url="/api/docs",
         redoc_url=None,
         openapi_url="/api/openapi.json",
@@ -227,6 +242,60 @@ def create_app(
     def get_skill_seeds() -> dict[str, Any]:
         seeds = svc.list_skill_seeds()
         return {"count": len(seeds), "seeds": seeds}
+
+    @app.get("/evolution/drafts")
+    @app.get("/api/evolution/drafts")
+    def list_evolution_drafts() -> dict[str, Any]:
+        drafts = svc.list_evolution_drafts()
+        return {"count": len(drafts), "drafts": drafts}
+
+    @app.post("/evolution/seeds/{seed_id}/evolve")
+    @app.post("/api/evolution/seeds/{seed_id}/evolve")
+    def evolve_from_seed(seed_id: str, req: EvolveSeedRequest | None = None) -> dict[str, Any]:
+        body = req or EvolveSeedRequest()
+        try:
+            return svc.evolve_from_seed(
+                seed_id,
+                skill_id_override=body.skill_id_override,
+                auto_verify=body.auto_verify,
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/evolution/drafts/{draft_id}/review")
+    @app.post("/api/evolution/drafts/{draft_id}/review")
+    def review_evolution_draft(draft_id: str, req: ReviewDraftRequest) -> dict[str, Any]:
+        try:
+            return svc.review_evolution_draft(
+                draft_id,
+                approved=req.approved,
+                reviewer=req.reviewer,
+                review_note=req.review_note,
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except PermissionError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+    @app.post("/skills/{skill_id}/rollback")
+    @app.post("/api/skills/{skill_id}/rollback")
+    def rollback_skill(skill_id: str) -> dict[str, Any]:
+        try:
+            return svc.rollback_skill(skill_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.post("/skills/{skill_id}/export")
+    @app.post("/api/skills/{skill_id}/export")
+    def export_skill(skill_id: str, req: ExportSkillRequest) -> dict[str, Any]:
+        try:
+            return svc.export_portable_skill(skill_id, req.output_zip)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.websocket("/ws/tasks")
     async def ws_stream_tasks(ws: WebSocket) -> None:

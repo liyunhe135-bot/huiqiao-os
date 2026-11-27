@@ -18,21 +18,25 @@
 | `M08` | 分级本地安全沙箱 | 管大脑：`Claude Opus 5.5 / Gemini 4 Neon` | `done` | 100% | ✅ | `packages/sandbox/`（T1纯计算AST插桩 / T2 Windows Job+POSIX rlimit+PEP578审计钩子 / T3硬化容器Fail-Closed + 16项红队全绿，全库 127/127） |
 | `M09` | CodeAct、上下文四件套与亲和 Subagent | 管大脑：`Gemini 4 Neon (Extra High)` | `done` | 100% | ✅ | **Phase 2 Beta 里程碑达成（`v0.2.0-beta`）**：`context_engine.py` + `codeact.py` + `subagent.py` + 网关接入，全库 138/138 |
 | `M10` | 分层本地记忆引擎与 1 秒反馈闭环 | 管编码：`Gemini 4 Carbon / Claude Sonnet 5.5` | `done` | 100% | ✅ | `packages/memory/`（`MEMORY.md`双向同步+每日日志+中英FTS5/向量混合双时态+4键反馈<200ms+种子捕获），全库 145/145 |
-| `M11` | 双闸门防坍塌自演化引擎与普惠导出 | 管大脑：`Gemini 4 Neon / Claude Opus 5.5` | `next` | — | ⬜ | Phase 3 收官块：完成后达 **RC** 里程碑 |
-| `INT-4` | 五维整体测试、离线打包与正式上线 | 管编码 + 管电脑 + 大脑抽检 | `pending` | — | ⬜ | `v1.0.0` 发布 |
+| `M11` | 双闸门防坍塌自演化引擎与普惠导出 | 管大脑：`Gemini 4 Neon / Claude Opus 5.5` | `done` | 100% | ✅ | **Phase 3 RC 里程碑达成（`v0.9.0-rc1`）**：`packages/evolution/`（Gate1 沙箱单测 + Gate2 C00 一票否决 + 人工签发 + 回滚 + `.hqskill.zip` 普惠导出导入），全库 151/151 |
+| `INT-4` | 五维整体测试、离线打包与正式上线 | 管编码 + 管电脑 + 大脑抽检 | `next` | — | ⬜ | Phase 4 收官冲刺：`v1.0.0` 正式发布 |
 
 ---
 
 ## 二、最新会话无缝交接快照（供下一次新会话直接接棒）
 
-- **更新时间**：2026-11-27 13:09
+- **更新时间**：2026-11-27 13:24
 - **已完成**：
-  1. `M00`–`M09`（含 Alpha `v0.1.0-alpha` 与 Beta `v0.2.0-beta`）全部通过并公开备份；
-  2. **`M10`（`B08` File-First 分层本地记忆引擎：`packages/memory/` — `MEMORY.md` 人类第一真相源自动双向同步 + `memory/YYYY-MM-DD.md` 每日情景日志 + SQLite WAL/中英 FTS5/128维特征向量混合双时态检索 + 一键遗忘 + 1 秒 4 键反馈闭环［赞/踩/纠偏/存为技能种子］ + FastAPI/CLI/零CDN WebUI 全栈挂接）完整落盘**；
-  3. **全仓库 `145 / 145` 项单测与端到端验收 100% 绿灯（4.11s）**，开源隐私卫生扫描 `HYGIENE_100_CLEAN`！
+  1. **全部 12 块核心乐高积木（`M00–M11`：`C00` 宪章 + `B01–B10` 全部槽位）100% 施工闭环**；
+  2. **`M11`（`B09` 双闸门防坍塌自演化引擎：`packages/evolution/` — Gate 1 独立 `M08` T2 离线沙箱客观单测 + Gate 2 `C00` 增上四问一票否决 + 人类审阅签发热刷新 `HybridRouter` + 一键回滚 + 高配反哺低配 `.hqskill.zip` 隐私体检/SHA-256 防篡改/防 Zip-Slip 导出导入；并顺手根治了 Windows `python -I` 隔离模式下 `-X utf8` 中文编码问题）完整落盘**；
+  3. **全仓库 `151 / 151` 项单测与全栈验收 100% 绿灯（4.70s）**，开源隐私扫描 `HYGIENE_100_CLEAN`，正式达成 **`v0.9.0-rc1`（Phase 3 RC 里程碑）**！
 - **单写者锁状态**：`forge/.active_writer.lock` 持续开启，严禁其他工具并发写入本目录。
-- **下一块待施工**：**`M11`（`B09` 双闸门防坍塌自演化引擎［闸门1：独立 `M08` 沙箱客观回归单测 + 闸门2：`C00` 增上四问一票否决审查 + 人类可逆签发］ + 高配反哺低配普惠便携技能包导出 `.hqskill.zip` → Phase 3 RC 里程碑 `v0.9.0-rc1`）**
+- **下一块待施工**：**`INT-4`（Phase 4 终极五维整体评测、离线便携打包脚本、用户快速上手手册与 `v1.0.0` 正式发布）**：
+  1. 断网 E2E 闭环压测（覆盖全部 5 通道 + 记忆 + 自演化 + 普惠包导入导出）；
+  2. 轨迹与路由评测报告自动生成（`evals/run_int4_eval.py` → 输出 Markdown 五维验收报告）；
+  3. 安全红队总复检 + 显存亲和调度压测 + C00 增上盲测打分卡；
+  4. 一键离线便携启动与打包脚本（`scripts/start_huiqiao.ps1` / `scripts/build_portable_bundle.py`）+ `v1.0.0` 正式发版！
 - **推荐切换模型**：
-  - 优先：**`Gemini 4 Neon (Extra High)`** 或 **`Claude Opus 5.5 (Thinking)`**（`M11` 是全系统防 Model Collapse 自演化与 `C00` 强扶弱普惠导出的最高治理闭环，强烈建议切回“管大脑”模型把关！）
-- **下一会话极简开场指令**（执行 `python forge/scripts/forge_guard.py brief M11` 也可自动生成）：
-  > 请激活 `huiqiao-forge-os` 技能，开始施工汇桥 OS 积木 `M11`（B09 双闸门防坍塌自演化引擎与普惠技能导出 → RC 里程碑）。仅读取 `forge/BRICK_CONTEXT_CARD.md`、`forge/PROGRESS_LEDGER.md`、`packages/memory/feedback.py` 和 `packages/core/constitution.py`，先输出模块接口与验收清单（<100 行），落盘并跑通 `forge_guard.py test`。
+  - 优先：**`Gemini 4 Carbon (Medium)`**（编排评测脚本与离线打包）或 **保持当前 `Gemini 4 Neon (Extra High)`** 一鼓作气完成 `INT-4` 五维终审并打标 **`v1.0.0`**！
+- **下一会话极简开场指令**：
+  > 请激活 `huiqiao-forge-os` 技能，开始执行汇桥 OS 终极收官 `INT-4`（五维整体评测、离线一键打包脚本与 `v1.0.0` 正式发版）。仅读取 `forge/BRICK_CONTEXT_CARD.md` 与 `forge/PROGRESS_LEDGER.md`，输出五维验收清单，落盘 `evals/` 评测器与 `scripts/` 离线启动打包脚本，跑通全量测试并发布 `v1.0.0`。

@@ -6,7 +6,7 @@ import pathlib
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
 from packages.core.contracts import WorkMode
@@ -65,6 +65,10 @@ class ReviewDraftRequest(BaseModel):
 
 class ExportSkillRequest(BaseModel):
     output_zip: str = Field(..., min_length=1)
+
+
+class SelectModelRequest(BaseModel):
+    model: str = Field(..., min_length=1)
 
 
 def create_app(
@@ -296,6 +300,33 @@ def create_app(
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/models")
+    @app.get("/api/models")
+    def get_local_models() -> dict[str, Any]:
+        return svc.list_local_models()
+
+    @app.post("/models/select")
+    @app.post("/api/models/select")
+    def select_local_model(req: SelectModelRequest) -> dict[str, Any]:
+        try:
+            return svc.select_local_model(req.model)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/preview/{run_id}/{artifact_name}")
+    def preview_run_artifact(run_id: str, artifact_name: str) -> FileResponse:
+        """在浏览器中安全预览指定运行生成的本地小程序或产物文件（防路径穿越）。"""
+        try:
+            run_data = svc.get_run(run_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        for art in run_data.get("artifacts") or []:
+            if art.get("name") == artifact_name:
+                fp = pathlib.Path(str(art.get("file_path", ""))).resolve()
+                if fp.is_file():
+                    return FileResponse(fp)
+        raise HTTPException(status_code=404, detail=f"未找到产物: {artifact_name}")
 
     @app.websocket("/ws/tasks")
     async def ws_stream_tasks(ws: WebSocket) -> None:

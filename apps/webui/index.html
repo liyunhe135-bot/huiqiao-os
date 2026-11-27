@@ -166,10 +166,47 @@
     .telemetry-bar {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 10px;
       font-size: 12px;
       font-family: var(--mono);
       color: var(--text-muted);
+    }
+
+    .model-select {
+      background: rgba(12, 15, 22, 0.95);
+      color: var(--cyber-yellow);
+      border: 1px solid var(--border-gold);
+      padding: 4px 9px;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .guide-drawer {
+      display: none;
+      margin-bottom: 14px;
+      padding: 14px 16px;
+      border: 1px solid var(--cyber-yellow);
+      background: linear-gradient(135deg, rgba(255, 214, 10, 0.11) 0%, rgba(10, 13, 19, 0.96) 100%);
+      box-shadow: 0 0 22px rgba(255, 214, 10, 0.16);
+      font-size: 13px;
+      line-height: 1.65;
+      position: relative;
+      z-index: 3;
+    }
+
+    .app-launch-banner {
+      display: none;
+      margin-bottom: 14px;
+      padding: 11px 14px;
+      border: 1px solid var(--emerald);
+      background: rgba(0, 229, 163, 0.1);
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      position: relative;
+      z-index: 3;
     }
 
     .status-dot {
@@ -679,6 +716,10 @@
 
     <div class="telemetry-bar">
       <div><span class="status-dot"></span><span id="healthText">正在唤醒本地清净界...</span></div>
+      <select id="modelSelect" class="model-select" title="切换本机已安装的 Ollama 模型" onchange="switchLocalModel(this.value)">
+        <option value="">探活本机模型中...</option>
+      </select>
+      <button class="btn btn-secondary" style="padding:4px 10px;font-size:11.5px;" onclick="toggleGuide()">📖 怎么用</button>
     </div>
   </header>
 
@@ -724,7 +765,7 @@
         <div class="input-row">
           <input type="text" id="attachInput" placeholder="可选：本地文件或目录路径（多个以分号 ; 分隔）" />
           <label class="cyber-check">
-            <input type="checkbox" id="applyCheck" /> 实际归档落盘
+            <input type="checkbox" id="applyCheck" onchange="onApplyCheckChange(this.checked)" /> 实际归档落盘
           </label>
           <button class="btn" id="submitBtn" onclick="submitTask()">⚡ 启动觉悟推演</button>
         </div>
@@ -740,6 +781,33 @@
           <polygon points="38,38 162,38 162,162 38,162" />
         </svg>
 
+        <div class="guide-drawer" id="guideDrawer">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <strong style="color:var(--cyber-yellow);font-size:14px;">⚡ 汇桥 OS 三步极速使用说明书（为什么刚才点构建没成功 & 怎么用）</strong>
+            <button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="toggleGuide()">收起</button>
+          </div>
+          <ol style="margin-left:18px;color:var(--text-main);">
+            <li><strong>选对顶部三档心智印</strong>：
+              <br/>• <code>Ask · 观照只读</code>：用于<strong>纯问答、提炼文档、表格统计、苏格拉底启发</strong>（内核物理禁写文件，保护系统安全）；
+              <br/>• <code>Plan · 审思预演</code>：用于<strong>整理文件夹或改文件前先看 Diff 对比</strong>，点「印可放行」才真正移动；
+              <br/>• <code>Execute · 金刚行持</code>：用于<strong>本地编码造物（如构建打卡小程序、写 Python 脚本并运行生成文件）</strong>！<em>（现在只要输入「构建…小程序」系统也会自动帮您切到 Execute 模式！）</em>
+            </li>
+            <li><strong>本地编码造物怎么玩</strong>：先确认不要误锁定左侧某个固定技能卡（再点一次已高亮卡片可取消锁定，回到自由路由），选 <code>Execute · 金刚行持</code>，输入需求（如：<code>构建一个背诵俱舍诵疏本地打卡小程序</code>），点 <strong>⚡ 启动觉悟推演</strong>，顶栏选中的本机显卡大模型（如 <code>qwen3.5:9b</code>）会在隔离沙箱内实写代码并生成网页！</li>
+            <li><strong>一键打开生成的小程序</strong>：生成完毕后，正下方会出现绿色闪烁横幅 <strong>「🚀 立即打开本地小程序」</strong>，点开即可独立使用！</li>
+          </ol>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn" style="padding:5px 12px;font-size:12px;" onclick="fillCodingDemo()">✨ 一键填入示例：构建背诵《俱舍诵疏》打卡小程序</button>
+          </div>
+        </div>
+
+        <div class="app-launch-banner" id="appLaunchBanner">
+          <div style="min-width:0;flex:1;overflow-wrap:anywhere;word-break:break-all;">
+            <strong style="color:var(--emerald);font-size:13.5px;">✦ 本地应用已在安全沙箱锻造完成！</strong>
+            <div id="appLaunchPath" style="font-size:11px;color:var(--text-muted);font-family:var(--mono);"></div>
+          </div>
+          <a id="appLaunchLink" href="#" target="_blank" class="btn" style="text-decoration:none;padding:7px 14px;font-size:12.5px;flex-shrink:0;">🚀 立即打开本地小程序</a>
+        </div>
+
         <div class="route-banner" id="routeBanner"></div>
 
         <div class="output-box" id="outputBox">
@@ -748,9 +816,13 @@
             <p>欢迎进入 <strong>汇桥 OS (HuiQiao OS)</strong> 本地离线共生中枢。本系统 100% 运行于您的个人主机，零外部云端追踪、零 CDN 外联。</p>
             <ul>
               <li><strong>左栏点选法宝</strong>：一键填入 5 大创世种子技能模板，秒级体验离线摘要、表格精算、护心复盘与苏格拉底启发；</li>
-              <li><strong>三摩地模式锁</strong>：<code>Ask</code> 物理只读、<code>Plan</code> 先审 Unified Diff、<code>Execute</code> 在隔离沙箱内受控执行；</li>
-              <li><strong>四摄回向自演化</strong>：每次运行后可一键「纠偏记忆」或「存为技能种子」，经双闸门验真沉淀为永恒本地智慧。</li>
+              <li><strong>本地编码造物</strong>：切至 <code>Execute · 金刚行持</code> 模式直接输入（如「构建一个背诵俱舍诵疏本地打卡小程序」），调用本机 RTX 显卡大模型在沙箱内直接生成可运行网页应用！</li>
+              <li><strong>四摄回向自演化</strong>：每次运行后可一键「正见纠偏」或「存为技能种子」，经双闸门验真沉淀为永恒本地智慧。</li>
             </ul>
+            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn" style="padding:6px 13px;font-size:12px;" onclick="fillCodingDemo()">⚡ 试一试：本地编码构建《俱舍诵疏》背诵打卡小程序</button>
+              <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="toggleGuide()">📖 查看 30 秒使用说明书</button>
+            </div>
           </div>
         </div>
 
@@ -917,6 +989,56 @@
       });
     }
 
+    function onApplyCheckChange(checked) {
+      if (checked && currentMode === "ask") {
+        selectMode("execute");
+      }
+    }
+
+    function toggleGuide() {
+      const el = document.getElementById("guideDrawer");
+      el.style.display = (el.style.display === "block") ? "none" : "block";
+    }
+
+    function fillCodingDemo() {
+      selectedSkillId = null;
+      document.querySelectorAll(".skill-card").forEach(el => el.classList.remove("active"));
+      selectMode("execute");
+      document.getElementById("applyCheck").checked = false;
+      document.getElementById("attachInput").value = "";
+      document.getElementById("taskInput").value =
+        "构建一个背诵《俱舍诵疏》本地打卡小程序：采用黑金禅意赛博风格，包含八品颂文进度追踪（界品、根品、世间品、业品、随眠品、贤圣品、智品、定品）、今日背诵与复习遍数+1打卡、连续精进天数统计与本地 localStorage 自动保存功能。";
+      document.getElementById("guideDrawer").style.display = "none";
+    }
+
+    async function loadLocalModels() {
+      try {
+        const data = await (await fetch("/api/models")).json();
+        const sel = document.getElementById("modelSelect");
+        sel.innerHTML = "";
+        if (!data.models || !data.models.length) {
+          sel.innerHTML = "<option value=''>未检测到 Ollama 在线 (规则引擎兜底)</option>";
+          return;
+        }
+        data.models.forEach(m => {
+          const opt = document.createElement("option");
+          opt.value = m.name;
+          opt.textContent = `算力法相: ${m.name} (${m.size_gb}G)`;
+          if (m.name === data.active_model) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      } catch (e) {}
+    }
+
+    async function switchLocalModel(modelName) {
+      if (!modelName) return;
+      await fetch("/api/models/select", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: modelName })
+      });
+    }
+
     function pickSkill(skillId) {
       selectedSkillId = (selectedSkillId === skillId) ? null : skillId;
       document.querySelectorAll(".skill-card").forEach(el => {
@@ -939,6 +1061,7 @@
       } catch (e) {
         document.getElementById("healthText").textContent = "本地网关连接中断";
       }
+      await loadLocalModels();
       await loadSkills();
       await loadRuns();
       await loadMemories();
@@ -1016,12 +1139,28 @@
       }
 
       const artBox = document.getElementById("artifactList");
+      const launchBanner = document.getElementById("appLaunchBanner");
+      let htmlArtifact = null;
       if (run.artifacts && run.artifacts.length) {
-        artBox.innerHTML = run.artifacts.map(a =>
-          `<div class="event-item"><strong style="color:var(--cyber-yellow);">${escapeHtml(a.name)}</strong><br/><span style="font-size:10.5px;font-family:var(--mono);">${escapeHtml(a.file_path)}</span></div>`
-        ).join("");
+        htmlArtifact = run.artifacts.find(a => String(a.name || "").toLowerCase().endsWith(".html"));
+        artBox.innerHTML = run.artifacts.map(a => {
+          const isHtml = String(a.name || "").toLowerCase().endsWith(".html");
+          const previewBtn = isHtml
+            ? `<div style="margin-top:5px;"><a href="/preview/${encodeURIComponent(run.run_id)}/${encodeURIComponent(a.name)}" target="_blank" class="btn" style="display:inline-block;text-decoration:none;padding:3px 9px;font-size:11px;">🚀 打开小程序</a></div>`
+            : "";
+          return `<div class="event-item"><strong style="color:var(--cyber-yellow);">${escapeHtml(a.name)}</strong><br/><span style="font-size:10.5px;font-family:var(--mono);">${escapeHtml(a.file_path)}</span>${previewBtn}</div>`;
+        }).join("");
       } else {
         artBox.textContent = "暂无落盘产物";
+      }
+
+      if (htmlArtifact) {
+        launchBanner.style.display = "flex";
+        document.getElementById("appLaunchPath").textContent = htmlArtifact.file_path;
+        document.getElementById("appLaunchLink").href =
+          `/preview/${encodeURIComponent(run.run_id)}/${encodeURIComponent(htmlArtifact.name)}`;
+      } else {
+        launchBanner.style.display = "none";
       }
 
       const evBox = document.getElementById("eventList");
@@ -1036,6 +1175,13 @@
       const attachRaw = document.getElementById("attachInput").value.trim();
       const attachments = attachRaw ? attachRaw.split(";").map(s => s.trim()).filter(Boolean) : [];
       const applyChanges = document.getElementById("applyCheck").checked;
+
+      // 智能防踩坑：勾选实际写入，或明确要求构建小程序/本地编码但仍停留在 Ask 时，自动切至 Execute 沙箱模式
+      const isCodingBuild = !selectedSkillId && /(构建|开发|编写|生成一个|写一个|制作).*(小程序|网页|应用|页面|计算器|打卡|脚本|工具|html|python)/i.test(text);
+      if (currentMode === "ask" && (applyChanges || isCodingBuild)) {
+        selectMode("execute");
+      }
+
       const payload = {
         text,
         work_mode: currentMode,

@@ -36,6 +36,7 @@ InferFn = Callable[[list[dict[str, str]]], str]
 
 _JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", flags=re.DOTALL)
 _PY_FENCE_RE = re.compile(r"```(?:python|py)\s*\n(.*?)```", flags=re.DOTALL | re.IGNORECASE)
+_HTML_FENCE_RE = re.compile(r"```(?:html|htm)\s*\n(.*?)```", flags=re.DOTALL | re.IGNORECASE)
 
 
 def _normalize_error_signature(stderr: str, blocked_reason: str | None) -> str:
@@ -74,7 +75,21 @@ def _parse_codeact_response(raw_text: str) -> dict[str, Any]:
         if code:
             return {"action": "run_code", "code": code}
 
-    raise ValueError("未检测到合法的 JSON 动作对象或 ```python``` 代码块")
+    # 3. 柔性兼容：本地模型直接输出 ```html ... ``` 单页应用代码时，自动封装为安全沙箱落盘与非空校验脚本
+    html_match = _HTML_FENCE_RE.search(cleaned)
+    if html_match:
+        html_src = html_match.group(1).strip()
+        if html_src:
+            auto_py = (
+                "import pathlib\n"
+                f"_html = {html_src!r}\n"
+                "pathlib.Path('index.html').write_text(_html, encoding='utf-8')\n"
+                "assert len(_html) >= 40, 'HTML 内容过短'\n"
+                "print('HTML_APP_READY:', len(_html), 'bytes -> index.html')\n"
+            )
+            return {"action": "run_code", "code": auto_py}
+
+    raise ValueError("未检测到合法的 JSON 动作对象或 ```python``` / ```html``` 代码块")
 
 
 class CodeActWorker:
@@ -198,9 +213,10 @@ class CodeActWorker:
 
         role_instructions = (
             "你运行在汇桥 OS L2-C CodeAct 离线安全沙箱执行闭环中。\n"
-            "每轮可输出 JSON 动作或直接输出 ```python``` 代码块：\n"
+            "每轮可输出 JSON 动作，或直接输出 ```python``` / ```html``` 代码块：\n"
             '- 执行代码: {"action": "run_code", "code": "Python代码", "verify_code": "可选校验代码"}\n'
-            '- 验收交付: {"action": "finish", "summary": "客观交付结论", "notes": "原理解释与复盘"}\n'
+            "- 若用户需求是『构建小程序 / 本地网页应用 / 打卡器 / 可视化工具』：请直接输出一个完整的单文件 ```html``` 代码块（内联美观的黑金配色 CSS 与原生 JS，使用 localStorage 本地持久化数据，严禁引用任何外部 http/https CDN），系统会自动在沙箱写入 index.html 并校验！\n"
+            '- 验收交付: {"action": "finish", "summary": "客观交付结论与功能说明", "notes": "使用方式说明"}\n'
             '- 诚实退让: {"action": "defer", "summary": "说明受限原因与已保留的阶段产物"}\n'
             "硬规则：必须先通过真实沙箱执行并拿到客观成功证据，绝不允许未经运行就口头宣称完成。"
         )
@@ -240,11 +256,35 @@ class CodeActWorker:
             try:
                 cmd = _parse_codeact_response(raw)
             except Exception as exc:  # noqa: BLE001
-                messages.append({"role": "assistant", "content": strip_think_blocks(raw)})
+                cleaned_natural = strip_think_blocks(raw).strip()
+                # 若前序轮次已拿到客观沙箱验证通过证据，且本地模型直接给出了自然语言总结说明，柔性采纳为最终交付
+                if verified and cleaned_natural and "```" not in cleaned_natural:
+                    elapsed_ms = int((time.perf_counter() - t0) * 1000)
+                    return StepOutput(
+                        run_id=step.run_id,
+                        task_id=step.task_id,
+                        step_id=step.step_id,
+                        brick_name="codeact_worker",
+                        success=True,
+                        summary=cleaned_natural,
+                        artifacts=list(dict.fromkeys(collected_artifacts)),
+                        model_notes="已通过安全沙箱客观执行验证并完成本地产物落盘。",
+                        tokens_used=total_tokens_est,
+                        elapsed_ms=elapsed_ms,
+                        metadata={
+                            "turns": turn,
+                            "sandbox_runs": sandbox_runs,
+                            "verified": verified,
+                            "compactions": self.context_manager.telemetry.compaction_count,
+                            "constitution_intact": self.context_manager.verify_constitution_intact(messages),
+                            "trace": trace,
+                        },
+                    )
+                messages.append({"role": "assistant", "content": cleaned_natural})
                 messages.append(
                     {
                         "role": "user",
-                        "content": f"[Format Error] 无法解析动作 ({exc})，请输出合法 JSON 或 ```python``` 代码块。",
+                        "content": f"[Format Error] 无法解析动作 ({exc})，请输出合法 JSON 或 ```python``` / ```html``` 代码块。",
                     }
                 )
                 trace.append({"turn": turn, "action": "parse_error", "error": str(exc)})

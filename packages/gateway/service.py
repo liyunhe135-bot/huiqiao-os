@@ -24,6 +24,11 @@ from packages.core.contracts import (
 from packages.evolution import SelfEvolutionEngine
 from packages.gateway.skills_loader import SkillRegistry
 from packages.governance import GovernanceGuard
+from packages.llm_gateway.ollama_live import (
+    list_ollama_models,
+    make_ollama_infer_fn,
+    pick_best_local_model,
+)
 from packages.memory import FeedbackKind, FeedbackLoopService, FileFirstMemoryStore
 from packages.orchestrator import (
     FlowContext,
@@ -53,6 +58,7 @@ class HuiQiaoService:
         semantic_infer_fn: InferFn | None = None,
         react_infer_fn: InferFn | None = None,
         codeact_infer_fn: InferFn | None = None,
+        auto_ollama: bool | None = None,
         sandbox: SandboxManager | None = None,
         capability_profile: CapabilityProfile | None = None,
     ) -> None:
@@ -90,13 +96,37 @@ class HuiQiaoService:
         )
         self.engine = OrchestratorEngine(self.store, guard=self.guard)
         self.router = HybridRouter(skills=self.skills.list_manifests(active_only=True))
+        # 生产环境（db_path=None）或显式开启 auto_ollama 时，自动探活本机 127.0.0.1:11434 Ollama 模型
+        enable_auto_ollama = (
+            auto_ollama
+            if auto_ollama is not None
+            else (
+                db_path is None
+                and semantic_infer_fn is None
+                and react_infer_fn is None
+                and codeact_infer_fn is None
+            )
+        )
+        self._auto_ollama_enabled = enable_auto_ollama
+        self.available_local_models: list[dict[str, Any]] = (
+            list_ollama_models() if enable_auto_ollama else []
+        )
+        self.active_local_model: str | None = (
+            pick_best_local_model(self.available_local_models) if enable_auto_ollama else None
+        )
+        ollama_fn: InferFn | None = (
+            make_ollama_infer_fn(lambda: self.active_local_model)
+            if self.active_local_model
+            else None
+        )
+
+        self._semantic_infer_fn = semantic_infer_fn or ollama_fn
+        self._react_infer_fn = react_infer_fn or ollama_fn
+        self._codeact_infer_fn = codeact_infer_fn or ollama_fn
         self.semantic_worker = SemanticCoCreatorWorker(
-            infer_fn=semantic_infer_fn,
+            infer_fn=self._semantic_infer_fn,
             constitution=self.constitution,
         )
-        self._semantic_infer_fn = semantic_infer_fn
-        self._react_infer_fn = react_infer_fn
-        self._codeact_infer_fn = codeact_infer_fn
         self.sandbox = sandbox or SandboxManager(
             offline_only=self.guard.offline_only,
             governance_guard=self.guard,
@@ -140,6 +170,7 @@ class HuiQiaoService:
             "constitution_version": self.constitution.version,
             "constitution_sha256": self.constitution.sha256[:16],
             "active_skills_count": len(active_skills),
+            "active_local_model": self.active_local_model,
             "checks": checks,
         }
 
@@ -343,6 +374,28 @@ class HuiQiaoService:
                 decision.channel == ExecutionChannel.L2C_CODEACT
                 and self._codeact_infer_fn is not None
             ):
+                if envelope.constraints.work_mode == WorkMode.ASK:
+                    hint = "；".join(ctx.steering_hints) if ctx.steering_hints else None
+                    out_ro = self.semantic_worker.run(
+                        StepInput(
+                            run_id=ctx.run_id,
+                            task_id=ctx.task_id,
+                            goal=envelope.raw_input or "",
+                            work_mode=WorkMode.ASK,
+                            interaction_mode=InteractionMode.COPILOT_EXECUTE,
+                            steering_hint=hint,
+                        )
+                    )
+                    saved_ro = ctx.save_artifact("code_blueprint.md", out_ro.summary)
+                    return {
+                        "summary": out_ro.summary,
+                        "model_notes": (
+                            "当前处于『Ask · 观照只读』模式，仅输出代码方案而不写入可执行应用文件；"
+                            "若需让本地大模型直接在沙箱生成可点开的小程序/脚本，请切换顶部为『Execute · 金刚行持』模式！"
+                        ),
+                        "artifact_paths": [str(saved_ro)],
+                    }
+
                 tier = (
                     decision.sandbox_tier
                     if decision.sandbox_tier != SandboxTier.NONE
@@ -351,7 +404,7 @@ class HuiQiaoService:
                 ws_dir = (
                     pathlib.Path(str(envelope.constraints.allowed_paths[0])).resolve()
                     if envelope.constraints.allowed_paths
-                    else (self.store.artifacts_root / ctx.run_id).resolve()
+                    else (self.store.artifacts_root / ctx.run_id / "sandbox_ws").resolve()
                 )
                 ws_dir.mkdir(parents=True, exist_ok=True)
                 ca_worker = CodeActWorker(
@@ -362,6 +415,7 @@ class HuiQiaoService:
                     guard=self.guard,
                     constitution=self.constitution,
                     verifier_code=str(meta.get("verifier_code", "")).strip() or None,
+                    timeout_sec=30.0,
                 )
                 hint = "；".join(ctx.steering_hints) if ctx.steering_hints else None
                 out = ca_worker.run(
@@ -377,10 +431,18 @@ class HuiQiaoService:
                 )
                 if not out.success:
                     raise RuntimeError(out.error or out.summary or "CodeAct 执行失败")
+                registered_paths: list[str] = []
+                for art_p in out.artifacts:
+                    fp = pathlib.Path(art_p)
+                    if fp.is_file():
+                        saved_art = ctx.save_artifact(fp.name, fp.read_bytes())
+                        registered_paths.append(str(saved_art))
+                    else:
+                        registered_paths.append(str(art_p))
                 return {
                     "summary": out.summary,
-                    "model_notes": out.model_notes,
-                    "artifact_paths": list(out.artifacts),
+                    "model_notes": out.model_notes or f"已由本地模型 ({self.active_local_model or 'custom'}) 在 M08 安全沙箱内生成并验证通过。",
+                    "artifact_paths": registered_paths,
                 }
 
             if self._react_infer_fn is not None:
@@ -799,6 +861,43 @@ class HuiQiaoService:
         info = self.evolution.import_skill(zip_path, overwrite=overwrite)
         self._refresh_router()
         return info
+
+    # --- 本机 Ollama 模型热发现与切换 ---
+    def list_local_models(self) -> dict[str, Any]:
+        if self._auto_ollama_enabled:
+            fresh = list_ollama_models()
+            if fresh:
+                self.available_local_models = fresh
+                if not self.active_local_model:
+                    self.active_local_model = pick_best_local_model(fresh)
+                    ollama_fn = make_ollama_infer_fn(lambda: self.active_local_model)
+                    self._semantic_infer_fn = ollama_fn
+                    self._react_infer_fn = ollama_fn
+                    self._codeact_infer_fn = ollama_fn
+                    self.semantic_worker = SemanticCoCreatorWorker(
+                        infer_fn=ollama_fn,
+                        constitution=self.constitution,
+                    )
+        return {
+            "active_model": self.active_local_model,
+            "models": self.available_local_models,
+        }
+
+    def select_local_model(self, model_name: str) -> dict[str, Any]:
+        info = self.list_local_models()
+        names = {m["name"] for m in info["models"]}
+        if model_name not in names:
+            raise ValueError(f"未在本机 Ollama 中找到模型: {model_name}")
+        self.active_local_model = model_name
+        ollama_fn = make_ollama_infer_fn(lambda: self.active_local_model)
+        self._semantic_infer_fn = ollama_fn
+        self._react_infer_fn = ollama_fn
+        self._codeact_infer_fn = ollama_fn
+        self.semantic_worker = SemanticCoCreatorWorker(
+            infer_fn=ollama_fn,
+            constitution=self.constitution,
+        )
+        return {"active_model": self.active_local_model, "models": self.available_local_models}
 
     def list_recent_runs(self, limit: int = 20) -> list[dict[str, Any]]:
         return self.store.list_runs(limit=limit)

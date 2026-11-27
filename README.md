@@ -48,7 +48,7 @@
 
 ---
 
-## 四、当前工程进度与快速验证（M00–M04 已 79/79 全绿）
+## 四、当前工程进度与快速验证（M00–M05 已 89/89 全绿）
 
 | 施工块 | 模块定位 | 状态 | 核心目录 |
 | :---: | :--- | :---: | :--- |
@@ -57,14 +57,15 @@
 | **`M02`** | 装机离线科学能力摸底器（微型 BFCL / RULER / CodeFix） | ✅ Done | `packages/profiler/` |
 | **`M03`** | 本地 MCP 能力总线、`Tool Search` 延迟加载与全格式文档解析 | ✅ Done | `packages/mcp_bus/`, `packages/doc_ingest/` |
 | **`M04`** | 确定性 6 点生命周期 Hooks、`Ask/Plan/Execute` 硬锁与证据闸门 | ✅ Done | `packages/governance/`, `config/policies.yaml` |
-| **`M05`** | 持久化 ADK 五原语编排、SQLite WAL 强杀续跑与流式状态机 | 🔜 Next | `packages/orchestrator/` |
+| **`M05`** | 持久化 ADK 五原语编排、SQLite WAL 强杀续跑与流式状态机 | ✅ Done | `packages/orchestrator/` |
+| **`M06`** | 柔硬结合路由与语义共生执行内核（`L2-S` + `ReActWorker`） | 🔜 Next | `packages/router/`, `packages/workers/` |
 
 ### 一分钟本机零 Token 体检与测试
 ```powershell
 # 1. 本机硬件/显存/Ollama 零 Token 体检
 python forge/scripts/forge_guard.py preflight
 
-# 2. 跑全量回归测试（当前 M00–M04 合计 79/79 绿灯，失败日志自动脱水 <=35 行）
+# 2. 跑全量回归测试（当前 M00–M05 合计 89/89 绿灯，失败日志自动脱水 <=35 行）
 python forge/scripts/forge_guard.py test tests/
 
 # 3. 积木合规体检 CLI（6/6 通过）

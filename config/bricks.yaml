@@ -40,8 +40,17 @@ slots:
         note: "M01 真实适配器就绪后切为 enabled: true"
 
   sandbox:
-    active: "mock-sandbox"
+    active: "m08-tiered-sandbox"
     bricks:
+      m08-tiered-sandbox:
+        brick_id: "b07-tiered-sandbox"
+        layer: "sandbox"
+        version: "1.0.0"
+        contract_version: "huiqiao/v1"
+        entrypoint: "packages.sandbox.manager:SandboxManager"
+        capabilities: ["t1_restricted_ast", "t2_os_audit_sandbox", "t3_docker_hardened", "fail_closed"]
+        enabled: false
+        note: "M08 三级本地安全沙箱（T1 纯计算 / T2 OS 原生审计 / T3 硬化容器 Fail-Closed）"
       mock-sandbox:
         brick_id: "b07-mock-sandbox"
         layer: "sandbox"
@@ -50,7 +59,7 @@ slots:
         entrypoint: "packages.core.registry:NullBrick"
         capabilities: ["healthcheck"]
         enabled: false
-        note: "M08 施工完成后替换为 WASM / OS-Native / MicroVM-Docker 适配器"
+        note: "M00 占位桩（已被 m08-tiered-sandbox 替代）"
 
   memory:
     active: "mock-memory"

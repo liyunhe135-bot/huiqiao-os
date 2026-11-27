@@ -28,3 +28,6 @@ jobs:
 
       - name: Run brick registry health CLI
         run: python -m packages.core.cli
+
+      - name: Run INT-4 5-dimension release evaluation
+        run: python -m evals.run_int4_eval

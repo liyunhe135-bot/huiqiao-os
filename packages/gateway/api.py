@@ -81,7 +81,7 @@ def create_app(
 
     app = FastAPI(
         title="汇桥 OS (HuiQiao OS) 本地共生智能网关",
-        version="0.9.0-rc1",
+        version="1.0.0",
         docs_url="/api/docs",
         redoc_url=None,
         openapi_url="/api/openapi.json",

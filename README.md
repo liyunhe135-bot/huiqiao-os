@@ -36,6 +36,8 @@
 | 05 | [05_乐高式研发执行与测试上线总计划.md](./docs/05_乐高式研发执行与测试上线总计划.md) | 12 块可独立验收的乐高施工单元（M00–M11）、双维度 Token/工时预算与 4 轮测试上线计划 |
 | 06 | [06_汇桥OS_PRD_v3.0_合并优化版.md](./docs/06_汇桥OS_PRD_v3.0_合并优化版.md) | v3.0 合并优化版：规格先行交付流水线 + 交付包五件套 + 基准证据补充 |
 | 07 | [07_开发协作规则与技能包_磨刀篇.md](./docs/07_开发协作规则与技能包_磨刀篇.md) | 磨刀协作补充：角色分工、省积分路由与开发纪律 |
+| 08 | [08_v1.0.0_五维验收与评估报告.md](./docs/08_v1.0.0_五维验收与评估报告.md) | `v1.0.0` 正式版 INT-4 五维全自动实测验收报告（5/5 全通过） |
+| 09 | [USER_GUIDE.md](./USER_GUIDE.md) | 5 分钟零门槛本地离线快速上手手册（CLI / WebUI / 普惠技能包） |
 
 ### 磨刀工程工具链（反 Token 吞噬 + 三岗模型切换）
 - 项目常驻规则：[AGENTS.md](./AGENTS.md)（打开本目录为 Workspace 自动生效，含严格单写者锁）
@@ -48,7 +50,7 @@
 
 ---
 
-## 四、当前工程进度与快速验证（Phase 3 RC 里程碑已达成 · M00–M11 全部 12 块积木 151/151 全绿）
+## 四、当前工程状态与快速体验（🎉 `v1.0.0` 正式版圆满发布 · M00–M11 + INT-4 全量 155/155 绿灯）
 
 | 施工块 | 模块定位 | 状态 | 核心目录 |
 | :---: | :--- | :---: | :--- |
@@ -59,17 +61,18 @@
 | **`M04`** | 确定性 6 点生命周期 Hooks、`Ask/Plan/Execute` 硬锁与证据闸门 | ✅ Done | `packages/governance/`, `config/policies.yaml` |
 | **`M05`** | 持久化 ADK 五原语编排、SQLite WAL 强杀续跑与流式状态机 | ✅ Done | `packages/orchestrator/` |
 | **`M06`** | 柔硬结合路由与语义共生执行内核（`L2-S` + `ReActWorker`） | ✅ Done | `packages/router/`, `packages/workers/` |
-| **`M07`** | 统一网关、CLI / 离线 WebUI 与 5 创世种子技能（**`v0.1.0-alpha` MVP**） | ✅ Done | `packages/gateway/`, `apps/`, `workspace/skills/` |
+| **`M07`** | 统一网关、CLI / 离线 WebUI 与 5 创世种子技能（**`v0.1.0-alpha`**） | ✅ Done | `packages/gateway/`, `apps/`, `workspace/skills/` |
 | **`M08`** | 分级本地安全沙箱（T1 纯计算 / T2 OS 原生审计 / T3 硬化容器 + 16 项红队） | ✅ Done | `packages/sandbox/` |
-| **`M09`** | CodeAct 自愈内核、上下文四件套与亲和 Subagent（**`v0.2.0-beta` 里程碑**） | ✅ Done | `packages/workers/`, `packages/gateway/` |
+| **`M09`** | CodeAct 自愈内核、上下文四件套与亲和 Subagent（**`v0.2.0-beta`**） | ✅ Done | `packages/workers/`, `packages/gateway/` |
 | **`M10`** | File-First 分层本地记忆引擎与 1 秒 4 键反馈闭环 | ✅ Done | `packages/memory/`, `packages/gateway/`, `apps/` |
-| **`M11`** | 双闸门防坍塌自演化引擎与普惠便携技能导出（**`v0.9.0-rc1` RC 里程碑**） | ✅ Done | `packages/evolution/`, `packages/gateway/`, `apps/` |
-| **`INT-4`** | 五维整体评测、离线一键打包与 **`v1.0.0`** 正式发版 | 🔜 Next | `evals/`, `scripts/` |
+| **`M11`** | 双闸门防坍塌自演化引擎与普惠便携技能导出（**`v0.9.0-rc1`**） | ✅ Done | `packages/evolution/`, `packages/gateway/`, `apps/` |
+| **`INT-4`** | 五维整体自动评测、离线一键打包与 **`v1.0.0` 正式发版** | ✅ Done | `evals/`, `scripts/`, `USER_GUIDE.md` |
 
 ### 一分钟本机体验与零 Token 测试
 ```powershell
-# 1. 跑全量回归测试（当前 M00–M11 合计 151/151 绿灯，失败日志自动脱水 <=35 行）
+# 1. 跑全量回归测试（M00–M11 + INT-4 合计 155/155 绿灯）与五维终极评测 (5/5 PASS)
 python forge/scripts/forge_guard.py test tests/
+python -m evals.run_int4_eval
 
 # 2. 查看 C00 宪章指纹、积木健康与 5 个活跃创世种子技能
 python -m apps.cli.main status

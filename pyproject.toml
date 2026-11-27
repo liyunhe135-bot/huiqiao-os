@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "huiqiao-os"
-version = "0.1.0"
+version = "1.0.0"
 description = "汇桥 OS (HuiQiao OS) - 本地离线乐高式共生智能调度与自演化系统"
 readme = "README.md"
 license = { text = "MIT" }

@@ -16,7 +16,7 @@ import json
 import pathlib
 import re
 import shutil
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import yaml
 
@@ -28,9 +28,11 @@ from packages.evolution.gates import (
 )
 from packages.evolution.models import EvolutionDraft, PortableSkillCard
 from packages.evolution.portable import export_portable_skill, import_portable_skill
-from packages.gateway.skills_loader import SkillRegistry
 from packages.memory.models import SkillSeedCandidate
 from packages.sandbox import SandboxManager
+
+if TYPE_CHECKING:
+    from packages.gateway.skills_loader import SkillRegistry
 
 SynthesizerFn = Callable[[SkillSeedCandidate], dict[str, str]]
 

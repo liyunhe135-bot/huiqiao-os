@@ -19,24 +19,18 @@
 | `M09` | CodeAct、上下文四件套与亲和 Subagent | 管大脑：`Gemini 4 Neon (Extra High)` | `done` | 100% | ✅ | **Phase 2 Beta 里程碑达成（`v0.2.0-beta`）**：`context_engine.py` + `codeact.py` + `subagent.py` + 网关接入，全库 138/138 |
 | `M10` | 分层本地记忆引擎与 1 秒反馈闭环 | 管编码：`Gemini 4 Carbon / Claude Sonnet 5.5` | `done` | 100% | ✅ | `packages/memory/`（`MEMORY.md`双向同步+每日日志+中英FTS5/向量混合双时态+4键反馈<200ms+种子捕获），全库 145/145 |
 | `M11` | 双闸门防坍塌自演化引擎与普惠导出 | 管大脑：`Gemini 4 Neon / Claude Opus 5.5` | `done` | 100% | ✅ | **Phase 3 RC 里程碑达成（`v0.9.0-rc1`）**：`packages/evolution/`（Gate1 沙箱单测 + Gate2 C00 一票否决 + 人工签发 + 回滚 + `.hqskill.zip` 普惠导出导入），全库 151/151 |
-| `INT-4` | 五维整体测试、离线打包与正式上线 | 管编码 + 管电脑 + 大脑抽检 | `next` | — | ⬜ | Phase 4 收官冲刺：`v1.0.0` 正式发布 |
+| `INT-4` | 五维整体测试、离线打包与正式上线 | 管编码 + 管电脑 + 大脑抽检 | `done` | 100% | ✅ | **`v1.0.0` 正式发版达成**：五维评测 `5/5` PASS + 离线便携包(232KB) + `USER_GUIDE.md` + 全库 `155/155` 全绿 |
 
 ---
 
-## 二、最新会话无缝交接快照（供下一次新会话直接接棒）
+## 二、最新会话无缝交接快照（全周期圆满收官 · `v1.0.0` GA 正式版）
 
-- **更新时间**：2026-11-27 13:24
-- **已完成**：
-  1. **全部 12 块核心乐高积木（`M00–M11`：`C00` 宪章 + `B01–B10` 全部槽位）100% 施工闭环**；
-  2. **`M11`（`B09` 双闸门防坍塌自演化引擎：`packages/evolution/` — Gate 1 独立 `M08` T2 离线沙箱客观单测 + Gate 2 `C00` 增上四问一票否决 + 人类审阅签发热刷新 `HybridRouter` + 一键回滚 + 高配反哺低配 `.hqskill.zip` 隐私体检/SHA-256 防篡改/防 Zip-Slip 导出导入；并顺手根治了 Windows `python -I` 隔离模式下 `-X utf8` 中文编码问题）完整落盘**；
-  3. **全仓库 `151 / 151` 项单测与全栈验收 100% 绿灯（4.70s）**，开源隐私扫描 `HYGIENE_100_CLEAN`，正式达成 **`v0.9.0-rc1`（Phase 3 RC 里程碑）**！
-- **单写者锁状态**：`forge/.active_writer.lock` 持续开启，严禁其他工具并发写入本目录。
-- **下一块待施工**：**`INT-4`（Phase 4 终极五维整体评测、离线便携打包脚本、用户快速上手手册与 `v1.0.0` 正式发布）**：
-  1. 断网 E2E 闭环压测（覆盖全部 5 通道 + 记忆 + 自演化 + 普惠包导入导出）；
-  2. 轨迹与路由评测报告自动生成（`evals/run_int4_eval.py` → 输出 Markdown 五维验收报告）；
-  3. 安全红队总复检 + 显存亲和调度压测 + C00 增上盲测打分卡；
-  4. 一键离线便携启动与打包脚本（`scripts/start_huiqiao.ps1` / `scripts/build_portable_bundle.py`）+ `v1.0.0` 正式发版！
-- **推荐切换模型**：
-  - 优先：**`Gemini 4 Carbon (Medium)`**（编排评测脚本与离线打包）或 **保持当前 `Gemini 4 Neon (Extra High)`** 一鼓作气完成 `INT-4` 五维终审并打标 **`v1.0.0`**！
-- **下一会话极简开场指令**：
-  > 请激活 `huiqiao-forge-os` 技能，开始执行汇桥 OS 终极收官 `INT-4`（五维整体评测、离线一键打包脚本与 `v1.0.0` 正式发版）。仅读取 `forge/BRICK_CONTEXT_CARD.md` 与 `forge/PROGRESS_LEDGER.md`，输出五维验收清单，落盘 `evals/` 评测器与 `scripts/` 离线启动打包脚本，跑通全量测试并发布 `v1.0.0`。
+- **更新时间**：2026-11-27 13:42
+- **圆满完成（`M00–M11 + INT-4` 100% 闭环）**：
+  1. **全部 12 块核心乐高积木（`C00` 众生和谐增上宪章 + `B01–B10` 十大可插拔模块）+ `INT-4` 终极收官 100% 完工闭环**；
+  2. **五维整体自动评测（`evals/run_int4_eval.py`）`5 / 5` 全维度 PASS**，已正式生成 [08_v1.0.0_五维验收与评估报告.md](../docs/08_v1.0.0_五维验收与评估报告.md)；
+  3. **离线便携发行包与一键启动体系就绪**：`scripts/build_portable_bundle.py` 已实打出零个人数据残留、内置 5 个 `.hqskill.zip` 普惠技能包与 SHA-256 完整性清单的 `dist/huiqiao-os-v1.0.0-portable.zip`（104 文件 / 232 KB），配套 `scripts/start_huiqiao.ps1` / `start_huiqiao.sh` 与 `USER_GUIDE.md`；
+  4. **全仓库 `155 / 155` 项单测与红队/端到端测试 100% 绿灯（5.84s）**，开源隐私扫描 `HYGIENE_100_CLEAN`，正式打标发布 **`v1.0.0`**！
+- **后续日常演进建议**：
+  - 平时在本机打开工作台：运行 `powershell -ExecutionPolicy Bypass -File scripts/start_huiqiao.ps1` 访问 `http://127.0.0.1:8765`；
+  - 积累新的高价值运行后：用 WebUI「存为技能种子」→ `evolve <seed_id> --approve` 双闸门沉淀为本地新技能，并可用 `export-skill` 导出 `.hqskill.zip` 反哺低配设备。

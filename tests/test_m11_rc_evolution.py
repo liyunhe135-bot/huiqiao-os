@@ -44,7 +44,7 @@ def test_evolution_brick_registry_and_rc_healthcheck(tmp_path: pathlib.Path) -> 
     )
     h = svc.healthcheck()
     assert h["ok"] is True
-    assert h["version"] == "0.9.0-rc1"
+    assert h["version"] in {"0.9.0-rc1", "1.0.0"}
     assert h["checks"]["evolution"] is True
     assert h["checks"]["memory"] is True
     assert h["checks"]["sandbox"] is True

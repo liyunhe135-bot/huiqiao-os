@@ -135,7 +135,7 @@ class HuiQiaoService:
         }
         return {
             "ok": all(checks.values()),
-            "version": "0.9.0-rc1",
+            "version": "1.0.0",
             "offline_only": self.guard.offline_only,
             "constitution_version": self.constitution.version,
             "constitution_sha256": self.constitution.sha256[:16],

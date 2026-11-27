@@ -24,10 +24,11 @@ _PRIVACY_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 
 _DEFAULT_SMOKE_TEST = (
     "import types\n"
+    "from packages.core.contracts import WorkMode\n"
     "out = execute(types.SimpleNamespace(\n"
     "    raw_input='测试普惠便携技能运行样例',\n"
     "    input=types.SimpleNamespace(text='测试普惠便携技能运行样例', attachments=[]),\n"
-    "    constraints=types.SimpleNamespace(work_mode='ask', offline_only=True),\n"
+    "    constraints=types.SimpleNamespace(work_mode=WorkMode.ASK, offline_only=True),\n"
     "    metadata={},\n"
     "), {})\n"
     "assert isinstance(out, dict) and 'summary' in out\n"

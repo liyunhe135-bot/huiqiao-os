@@ -22,6 +22,7 @@ data/*.db-shm
 data/*.db-wal
 models/
 offline_cache/
+dist/
 workspace/runs/
 workspace/.huiqiao/
 workspace/MEMORY.md

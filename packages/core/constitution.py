@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import pathlib
 import re
 from dataclasses import dataclass
@@ -33,6 +34,15 @@ class LoadedConstitution:
     def as_system_prefix(self) -> str:
         """用于上下文前缀缓存锁与压缩后强制重注的精炼前缀块。"""
         return self.compact_digest
+
+    @property
+    def sha256(self) -> str:
+        """当前宪章正文的确定性 SHA-256 指纹（供网关与终端健康核验）。"""
+        return hashlib.sha256(self.full_text.encode("utf-8")).hexdigest()
+
+    @property
+    def version(self) -> str:
+        return "huiqiao-constitution/v1.0"
 
 
 def load_constitution(path: pathlib.Path | str | None = None) -> LoadedConstitution:

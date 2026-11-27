@@ -1,0 +1,556 @@
+"""M07 B01 统一网关与 Alpha MVP 总装配服务（HuiQiaoService · 串联 M00–M06 全部积木）."""
+
+from __future__ import annotations
+
+import pathlib
+from typing import Any, Callable, Iterator
+
+from packages.core.constitution import LoadedConstitution, load_constitution
+from packages.core.contracts import (
+    CapabilityProfile,
+    ExecutionChannel,
+    InteractionMode,
+    RouteDecision,
+    SkillManifest,
+    StepInput,
+    TaskConstraints,
+    TaskEnvelope,
+    TaskInput,
+    Verifiability,
+    WorkMode,
+    new_id,
+)
+from packages.gateway.skills_loader import SkillRegistry
+from packages.governance import GovernanceGuard
+from packages.orchestrator import (
+    FlowContext,
+    FlowPrimitive,
+    OrchestratorEngine,
+    SequentialFlow,
+    SqliteStateStore,
+    TaskNode,
+)
+from packages.router import HybridRouter
+from packages.workers import ReActWorker, SemanticCoCreatorWorker
+
+InferFn = Callable[[list[dict[str, str]]], str]
+
+
+class HuiQiaoService:
+    """汇桥 OS 本地一体化运行内核（CLI / FastAPI / WebSocket 共享同一确定性底座）。"""
+
+    def __init__(
+        self,
+        *,
+        repo_root: pathlib.Path | str | None = None,
+        db_path: pathlib.Path | str | None = None,
+        skills_root: pathlib.Path | str | None = None,
+        semantic_infer_fn: InferFn | None = None,
+        react_infer_fn: InferFn | None = None,
+        capability_profile: CapabilityProfile | None = None,
+    ) -> None:
+        self.repo_root = (
+            pathlib.Path(repo_root).resolve()
+            if repo_root is not None
+            else pathlib.Path(__file__).resolve().parents[2]
+        )
+        self.workspace_dir = self.repo_root / "workspace"
+        self.workspace_dir.mkdir(parents=True, exist_ok=True)
+
+        self.constitution: LoadedConstitution = load_constitution(
+            self.workspace_dir / "CONSTITUTION.md"
+        )
+        self.skills = SkillRegistry(skills_root or (self.workspace_dir / "skills"))
+
+        policies_yaml = self.repo_root / "config" / "policies.yaml"
+        if policies_yaml.exists():
+            self.guard = GovernanceGuard.from_yaml(policies_yaml, base_dir=self.repo_root)
+        else:
+            self.guard = GovernanceGuard(
+                offline_only=True,
+                allowed_roots=(self.workspace_dir,),
+                base_dir=self.repo_root,
+            )
+
+        resolved_db = (
+            pathlib.Path(db_path)
+            if db_path is not None
+            else self.workspace_dir / ".huiqiao" / "state.db"
+        )
+        self.store = SqliteStateStore(
+            resolved_db,
+            artifacts_root=resolved_db.parent / "runs",
+        )
+        self.engine = OrchestratorEngine(self.store, guard=self.guard)
+        self.router = HybridRouter(skills=self.skills.list_manifests(active_only=True))
+        self.semantic_worker = SemanticCoCreatorWorker(
+            infer_fn=semantic_infer_fn,
+            constitution=self.constitution,
+        )
+        self._semantic_infer_fn = semantic_infer_fn
+        self._react_infer_fn = react_infer_fn
+        self.capability_profile = capability_profile
+
+    def healthcheck(self) -> dict[str, Any]:
+        active_skills = self.skills.list_manifests(active_only=True)
+        checks = {
+            "constitution": bool(self.constitution.sha256),
+            "router": self.router.healthcheck(),
+            "governance": self.guard.healthcheck(),
+            "orchestrator_wal": self.engine.healthcheck(),
+            "semantic_worker": self.semantic_worker.healthcheck(),
+            "genesis_skills_ready": len(active_skills) >= 5,
+        }
+        return {
+            "ok": all(checks.values()),
+            "version": "0.1.0-alpha",
+            "offline_only": self.guard.offline_only,
+            "constitution_version": self.constitution.version,
+            "constitution_sha256": self.constitution.sha256[:16],
+            "active_skills_count": len(active_skills),
+            "checks": checks,
+        }
+
+    def list_skills(self) -> list[SkillManifest]:
+        return self.skills.list_manifests()
+
+    def get_skill_detail(self, skill_id: str) -> dict[str, Any]:
+        manifest = self.skills.get_manifest(skill_id)
+        if manifest is None:
+            raise KeyError(f"未找到技能: {skill_id}")
+        return {
+            "manifest": manifest.model_dump(mode="json"),
+            "skill_markdown": self.skills.read_skill_markdown(skill_id),
+        }
+
+    def accept(self, raw_payload: dict[str, Any], source: str = "api") -> TaskEnvelope:
+        """满足 IngressGatewayProtocol：将外部请求标准化为 TaskEnvelope。"""
+        text = str(raw_payload.get("text") or raw_payload.get("raw_input") or "").strip()
+        attachments = [str(p) for p in (raw_payload.get("attachments") or []) if str(p).strip()]
+        allowed_paths = [str(p) for p in (raw_payload.get("allowed_paths") or []) if str(p).strip()]
+        mode_raw = raw_payload.get("work_mode", WorkMode.ASK)
+        work_mode = mode_raw if isinstance(mode_raw, WorkMode) else WorkMode(str(mode_raw).lower())
+
+        return TaskEnvelope(
+            source=source,
+            input=TaskInput(
+                text=text,
+                attachments=attachments,
+                expected_output_format=raw_payload.get("expected_output_format"),
+            ),
+            constraints=TaskConstraints(
+                offline_only=bool(raw_payload.get("offline_only", True)),
+                work_mode=work_mode,
+                allowed_paths=allowed_paths,
+            ),
+            metadata=dict(raw_payload.get("metadata") or {}),
+        )
+
+    def _resolve_route(self, envelope: TaskEnvelope, explicit_skill_id: str | None = None) -> RouteDecision:
+        # 无论是否显式指定 skill_id，先经 HybridRouter 做 C00 有害意图预检
+        decision = self.router.route(envelope, self.capability_profile)
+        if not decision.constitution_audit.passed:
+            return decision
+
+        if explicit_skill_id:
+            manifest = self.skills.get_manifest(explicit_skill_id)
+            if manifest is None:
+                raise KeyError(f"指定的技能不存在: {explicit_skill_id}")
+            im = (
+                InteractionMode.UPLIFT_MENTOR
+                if manifest.verifiability == Verifiability.LOW_VERIFIABLE
+                else InteractionMode.COPILOT_EXECUTE
+            )
+            return RouteDecision(
+                task_id=envelope.task_id,
+                verifiability=manifest.verifiability,
+                channel=ExecutionChannel.L0_SKILL,
+                interaction_mode=im,
+                confidence=0.99,
+                matched_skills=[f"{manifest.skill_id}@{manifest.version}"],
+                primary_model_role="fast_router",
+                rationale=f"用户显式指定执行创世/工作区技能 {manifest.skill_id}",
+            )
+        return decision
+
+    def _build_flow(self, envelope: TaskEnvelope, decision: RouteDecision) -> FlowPrimitive:
+        meta = envelope.metadata or {}
+        apply_changes = bool(meta.get("apply_changes", False))
+        custom_action = str(meta.get("action", ""))
+        requested_perm = str(meta.get("permission", "")).upper()
+
+        # 1. L0 技能直通执行节点
+        if decision.channel == ExecutionChannel.L0_SKILL and decision.matched_skills:
+            skill_id = decision.matched_skills[0].split("@")[0]
+            manifest = self.skills.get_manifest(skill_id)
+            req_perms = {p.upper() for p in (manifest.required_permissions if manifest else [])}
+            perm = "WRITE" if (apply_changes or "WRITE" in req_perms or requested_perm == "WRITE") else "READ"
+
+            def _run_l0(ctx: FlowContext) -> dict[str, Any]:
+                call_state = dict(ctx.state)
+                if self._semantic_infer_fn is not None:
+                    call_state["_semantic_infer_fn"] = self._semantic_infer_fn
+                result = self.skills.execute_skill(skill_id, envelope, call_state)
+                art_paths: list[str] = []
+                if result.get("artifact_name") and result.get("artifact_content") is not None:
+                    saved = ctx.save_artifact(
+                        str(result["artifact_name"]),
+                        result["artifact_content"],
+                    )
+                    art_paths.append(str(saved))
+                return {
+                    "summary": result.get("summary", ""),
+                    "model_notes": result.get("model_notes", ""),
+                    "diff_preview": result.get("diff_preview", ""),
+                    "skill_id": skill_id,
+                    "skill_output": {
+                        k: v
+                        for k, v in result.items()
+                        if k not in {"artifact_content"}
+                    },
+                    "artifact_paths": art_paths,
+                }
+
+            return SequentialFlow(
+                node_id=f"flow_l0_{skill_id}",
+                steps=[
+                    TaskNode(
+                        node_id=f"skill_{skill_id}",
+                        fn=_run_l0,
+                        permission=perm,
+                        action=custom_action,
+                        target_path_key="target_path" if "target_path" in self._initial_paths(envelope) else None,
+                        description=f"执行技能 {skill_id}",
+                    )
+                ],
+            )
+
+        # 2. L2-S 语义共生与启发共创通道
+        if decision.channel == ExecutionChannel.L2S_SEMANTIC_COCREATE:
+            perm = (
+                requested_perm
+                if requested_perm in {"READ", "WRITE", "DELETE", "EXECUTE"}
+                else ("WRITE" if (apply_changes or meta.get("new_content") is not None) else "READ")
+            )
+
+            def _run_l2s(ctx: FlowContext) -> dict[str, Any]:
+                hint = "；".join(ctx.steering_hints) if ctx.steering_hints else None
+                out = self.semantic_worker.run(
+                    StepInput(
+                        run_id=ctx.run_id,
+                        task_id=ctx.task_id,
+                        goal=envelope.raw_input or "",
+                        work_mode=envelope.constraints.work_mode,
+                        interaction_mode=decision.interaction_mode,
+                        steering_hint=hint,
+                    )
+                )
+                art_paths: list[str] = []
+                if meta.get("target_path") and meta.get("new_content") is not None:
+                    tp = pathlib.Path(str(meta["target_path"]))
+                    tp.parent.mkdir(parents=True, exist_ok=True)
+                    tp.write_text(str(meta["new_content"]), encoding="utf-8")
+                    art_paths.append(str(tp))
+                saved = ctx.save_artifact("semantic_notes.md", out.summary)
+                art_paths.append(str(saved))
+                return {
+                    "summary": out.summary,
+                    "model_notes": out.model_notes,
+                    "artifact_paths": art_paths,
+                }
+
+            return SequentialFlow(
+                node_id="flow_l2s_semantic",
+                steps=[
+                    TaskNode(
+                        node_id="semantic_cocreate",
+                        fn=_run_l2s,
+                        permission=perm,
+                        action=custom_action,
+                        target_path_key="target_path" if meta.get("target_path") else None,
+                    )
+                ],
+            )
+
+        # 3. L1 / L2-C / L3 通道（柔性跨界协同：有本地表格/文档优先联动确定性引擎，或驱动 ReActWorker）
+        perm = requested_perm if requested_perm in {"READ", "WRITE", "DELETE", "EXECUTE"} else (
+            "WRITE" if (apply_changes or meta.get("new_content") is not None) else "READ"
+        )
+
+        def _run_structured(ctx: FlowContext) -> dict[str, Any]:
+            attachments = list(envelope.input.attachments) if envelope.input else []
+            if attachments:
+                ext = pathlib.Path(attachments[0]).suffix.lower()
+                if ext in {".csv", ".tsv"} and self.skills.get_manifest("genesis-table-analyst"):
+                    res = self.skills.execute_skill("genesis-table-analyst", envelope, dict(ctx.state))
+                    saved = ctx.save_artifact(res["artifact_name"], res["artifact_content"])
+                    return {
+                        "summary": res["summary"],
+                        "model_notes": f"[跨通道协同 -> genesis-table-analyst] {res.get('model_notes', '')}",
+                        "artifact_paths": [str(saved)],
+                    }
+                if ext in {".md", ".txt", ".json", ".html", ".docx", ".pdf"} and self.skills.get_manifest("genesis-doc-digest"):
+                    res = self.skills.execute_skill("genesis-doc-digest", envelope, dict(ctx.state))
+                    saved = ctx.save_artifact(res["artifact_name"], res["artifact_content"])
+                    return {
+                        "summary": res["summary"],
+                        "model_notes": f"[跨通道协同 -> genesis-doc-digest] {res.get('model_notes', '')}",
+                        "artifact_paths": [str(saved)],
+                    }
+
+            if self._react_infer_fn is not None:
+                worker = ReActWorker(
+                    infer_fn=self._react_infer_fn,
+                    guard=self.guard,
+                    constitution=self.constitution,
+                )
+                hint = "；".join(ctx.steering_hints) if ctx.steering_hints else None
+                out = worker.run(
+                    StepInput(
+                        run_id=ctx.run_id,
+                        task_id=ctx.task_id,
+                        goal=envelope.raw_input or "",
+                        work_mode=envelope.constraints.work_mode,
+                        interaction_mode=decision.interaction_mode,
+                        steering_hint=hint,
+                    )
+                )
+                return {"summary": out.summary, "model_notes": out.model_notes, "error": out.error}
+
+            if meta.get("target_path") and meta.get("new_content") is not None:
+                tp = pathlib.Path(str(meta["target_path"]))
+                tp.parent.mkdir(parents=True, exist_ok=True)
+                tp.write_text(str(meta["new_content"]), encoding="utf-8")
+                return {
+                    "summary": f"已在受控工作区完成文件写入：`{tp}`",
+                    "model_notes": "已通过 M04 GovernanceGuard 路径与模式校验。",
+                    "artifact_paths": [str(tp)],
+                }
+
+            hint_suffix = f"\n- **已吸纳中途改向**：{'；'.join(ctx.steering_hints)}" if ctx.steering_hints else ""
+            summary = (
+                f"### 结构化任务执行回执（通道：`{decision.channel.value}`）\n"
+                f"- **任务目标**：{envelope.raw_input}\n"
+                f"- **工作模式**：`{envelope.constraints.work_mode.value}`\n"
+                f"- **路由依据**：{decision.rationale}{hint_suffix}"
+            )
+            saved = ctx.save_artifact("structured_execution_plan.md", summary)
+            return {
+                "summary": summary,
+                "model_notes": "M08/M09 接入沙箱 CodeAct 后将自动升级为受控容器执行。",
+                "artifact_paths": [str(saved)],
+            }
+
+        return SequentialFlow(
+            node_id=f"flow_{decision.channel.value.lower()}",
+            steps=[
+                TaskNode(
+                    node_id="structured_step",
+                    fn=_run_structured,
+                    permission=perm,
+                    action=custom_action,
+                    target_path_key="target_path" if self._initial_paths(envelope).get("target_path") else None,
+                )
+            ],
+        )
+
+    @staticmethod
+    def _initial_paths(envelope: TaskEnvelope) -> dict[str, Any]:
+        meta = envelope.metadata or {}
+        extra: dict[str, Any] = {}
+        if meta.get("target_path"):
+            extra["target_path"] = str(meta["target_path"])
+        elif envelope.input and envelope.input.attachments and meta.get("apply_changes"):
+            extra["target_path"] = str(envelope.input.attachments[0])
+        if "old_content" in meta and "new_content" in meta:
+            extra["old_content"] = str(meta["old_content"])
+            extra["new_content"] = str(meta["new_content"])
+        return extra
+
+    def stream_task(
+        self,
+        text: str,
+        *,
+        work_mode: WorkMode | str = WorkMode.ASK,
+        source: str = "api",
+        attachments: list[str] | None = None,
+        allowed_paths: list[str] | None = None,
+        skill_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Iterator[dict[str, Any]]:
+        """流式提交任务并实时推送事件（供 WebSocket 与流式终端消费）。"""
+        envelope = self.accept(
+            {
+                "text": text,
+                "work_mode": work_mode,
+                "attachments": attachments or [],
+                "allowed_paths": allowed_paths or [],
+                "metadata": metadata or {},
+            },
+            source=source,
+        )
+        explicit = skill_id or (envelope.metadata.get("skill_id") if envelope.metadata else None)
+        decision = self._resolve_route(envelope, explicit_skill_id=explicit)
+        run_id = new_id("run")
+
+        init_state: dict[str, Any] = {
+            "_envelope": envelope.model_dump(mode="json"),
+            "_route": decision.model_dump(mode="json"),
+            "apply_changes": bool(envelope.metadata.get("apply_changes", False)),
+            **self._initial_paths(envelope),
+        }
+        effective_allowed = list(envelope.constraints.allowed_paths)
+        if str(self.workspace_dir) not in effective_allowed:
+            effective_allowed.append(str(self.workspace_dir))
+        init_state["allowed_paths"] = effective_allowed
+
+        # 若触发 C00 宪章底线拦截或 A5 谦卑暂缓，直接落盘透明说明
+        if decision.channel == ExecutionChannel.HONEST_DEFER:
+            status = (
+                "REJECTED_BY_CONSTITUTION"
+                if not decision.constitution_audit.passed
+                else "DEFERRED_HUMBLE"
+            )
+            init_state["summary"] = f"【透明边界说明】{decision.rationale}"
+            init_state["model_notes"] = "依据 C00 众生和谐增上宪章守住底线，未执行潜在越界动作。"
+            self.store.create_run(
+                run_id=run_id,
+                task_id=envelope.task_id,
+                flow_name="honest_defer",
+                initial_state=init_state,
+            )
+            self.store.save_checkpoint(
+                run_id=run_id,
+                node_id="constitution_gate",
+                step_index=0,
+                state=init_state,
+                completed_nodes=[],
+                status=status,
+                error=decision.rationale if status == "REJECTED_BY_CONSTITUTION" else None,
+            )
+            yield self.store.append_event(
+                run_id=run_id,
+                task_id=envelope.task_id,
+                event_type="route_decided",
+                payload=decision.model_dump(mode="json"),
+            )
+            yield self.store.append_event(
+                run_id=run_id,
+                task_id=envelope.task_id,
+                event_type="run_deferred",
+                payload={"status": status, "rationale": decision.rationale},
+            )
+            return
+
+        flow = self._build_flow(envelope, decision)
+        first = True
+        for ev in self.engine.stream_run(
+            flow,
+            task_id=envelope.task_id,
+            initial_state=init_state,
+            run_id=run_id,
+            work_mode=envelope.constraints.work_mode,
+        ):
+            yield ev
+            if first:
+                first = False
+                yield self.store.append_event(
+                    run_id=run_id,
+                    task_id=envelope.task_id,
+                    event_type="route_decided",
+                    payload=decision.model_dump(mode="json"),
+                )
+
+    def submit_task(
+        self,
+        text: str,
+        *,
+        work_mode: WorkMode | str = WorkMode.ASK,
+        source: str = "api",
+        attachments: list[str] | None = None,
+        allowed_paths: list[str] | None = None,
+        skill_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        events = list(
+            self.stream_task(
+                text,
+                work_mode=work_mode,
+                source=source,
+                attachments=attachments,
+                allowed_paths=allowed_paths,
+                skill_id=skill_id,
+                metadata=metadata,
+            )
+        )
+        run_id = events[0]["run_id"]
+        return self.get_run(run_id)
+
+    def steer_run(self, run_id: str, hint: str) -> dict[str, Any]:
+        self.engine.steer(run_id, hint)
+        rec = self.store.get_run(run_id)
+        if rec is None:
+            raise KeyError(f"运行不存在: {run_id}")
+        self.store.append_event(
+            run_id=run_id,
+            task_id=rec["task_id"],
+            event_type="steering_queued",
+            payload={"hint": hint},
+        )
+        return self.get_run(run_id)
+
+    def resume_run(
+        self,
+        run_id: str,
+        *,
+        approved: bool = True,
+        work_mode: WorkMode | str = WorkMode.EXECUTE,
+        approval_payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        rec = self.store.get_run(run_id)
+        if rec is None:
+            raise KeyError(f"运行不存在: {run_id}")
+        state = rec["state"]
+        envelope = TaskEnvelope.model_validate(state["_envelope"])
+        decision = RouteDecision.model_validate(state["_route"])
+        mode = work_mode if isinstance(work_mode, WorkMode) else WorkMode(str(work_mode).lower())
+        envelope.constraints.work_mode = mode
+        flow = self._build_flow(envelope, decision)
+
+        self.engine.resume(
+            flow,
+            run_id,
+            approved=approved,
+            approval_payload=approval_payload,
+            work_mode=mode,
+        )
+        return self.get_run(run_id)
+
+    def get_run(self, run_id: str) -> dict[str, Any]:
+        rec = self.store.get_run(run_id)
+        if rec is None:
+            raise KeyError(f"未找到运行记录: {run_id}")
+        state = rec["state"]
+        artifacts = self.store.list_artifacts(run_id)
+        events = self.store.list_events(run_id)
+        return {
+            "run_id": rec["run_id"],
+            "task_id": rec["task_id"],
+            "flow_name": rec["flow_name"],
+            "status": rec["status"],
+            "step_count": rec["step_count"],
+            "summary": state.get("summary", ""),
+            "model_notes": state.get("model_notes", ""),
+            "diff_preview": state.get("diff_preview")
+            or ((rec.get("pending_interrupt") or {}).get("diff_preview", "")),
+            "route_decision": state.get("_route"),
+            "pending_interrupt": rec.get("pending_interrupt"),
+            "error": rec.get("error"),
+            "artifacts": artifacts,
+            "events": events,
+            "created_at": rec["created_at"],
+            "updated_at": rec["updated_at"],
+        }
+
+    def list_recent_runs(self, limit: int = 20) -> list[dict[str, Any]]:
+        return self.store.list_runs(limit=limit)

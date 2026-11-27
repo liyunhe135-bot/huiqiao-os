@@ -1,0 +1,29 @@
+contract_version: "huiqiao/v1"
+skill_id: "genesis-daily-reflect"
+name: "每日复盘与三件要事"
+version: "1.0.0"
+description: "将零散日常记录梳理为「今日进展亮点 / 经验卡点提炼 / 明日聚焦 1–3 件要事」清爽卡片，护持平静节奏，拒绝焦虑内卷。"
+status: "ACTIVE"
+verifiability: "MIXED"
+required_permissions:
+  - "READ"
+portable_lite_ready: true
+input_schema:
+  type: "object"
+  properties:
+    text:
+      type: "string"
+output_schema:
+  type: "object"
+  properties:
+    summary:
+      type: "string"
+metadata:
+  category: "genesis"
+  triggers:
+    - "每日复盘"
+    - "今日复盘"
+    - "明日要事"
+    - "三件要事"
+    - "日终总结"
+    - "工作复盘"

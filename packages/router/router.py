@@ -188,9 +188,12 @@ class HybridRouter:
         best_score = 0.0
 
         for skill in active_skills:
-            # 精确命中 skill_id 或技能名直接高置信度直通
+            # 精确命中 skill_id、技能名或 metadata.triggers 触发短语直接高置信度直通
             if skill.skill_id.lower() in text_lower or skill.name.lower() in text_lower:
                 return skill, 0.96
+            triggers = skill.metadata.get("triggers", []) if isinstance(skill.metadata, dict) else []
+            if any(str(t).lower() in text_lower for t in triggers if t):
+                return skill, 0.93
             s_tokens = _extract_tokens(f"{skill.name} {skill.description}")
             if not s_tokens or not q_tokens:
                 continue

@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>汇桥 OS · 本地离线共生智能工作台</title>
+  <style>
+    :root {
+      --bg: #f5f4ef;
+      --surface: #ffffff;
+      --surface-soft: #faf9f5;
+      --border: #e3e0d6;
+      --text: #1f2421;
+      --muted: #666c67;
+      --brand: #235c4b;
+      --brand-light: #e6f2ee;
+      --warn: #9c5718;
+      --warn-bg: #fef5eb;
+      --danger: #a62b2b;
+      --danger-bg: #fdeeee;
+      --radius: 12px;
+      --mono: "Cascadia Code", "Consolas", ui-monospace, monospace;
+      --sans: "HarmonyOS Sans SC", "Microsoft YaHei UI", system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    header {
+      height: 54px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .brand-group { display: flex; align-items: center; gap: 12px; }
+    .brand-title { font-size: 17px; font-weight: 700; color: var(--brand); letter-spacing: 0.4px; }
+    .pill {
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--brand-light);
+      color: var(--brand);
+      font-weight: 600;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #1f8b5c;
+      margin-right: 6px;
+    }
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 290px 1fr 340px;
+      gap: 14px;
+      padding: 14px;
+      min-height: 0;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 12px 15px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface-soft);
+    }
+    .panel-body {
+      padding: 12px 15px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .skill-card {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 10px 12px;
+      margin-bottom: 9px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      background: var(--surface-soft);
+    }
+    .skill-card:hover, .skill-card.active {
+      border-color: var(--brand);
+      background: var(--brand-light);
+    }
+    .skill-name { font-size: 13.5px; font-weight: 700; margin-bottom: 4px; color: var(--text); }
+    .skill-desc { font-size: 12px; color: var(--muted); line-height: 1.45; }
+    .mode-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface-soft);
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s;
+    }
+    .mode-btn.selected {
+      border-color: var(--brand);
+      background: var(--brand-light);
+    }
+    .mode-btn strong { display: block; font-size: 13px; color: var(--text); }
+    .mode-btn span { font-size: 11px; color: var(--muted); }
+    textarea, input[type="text"] {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: inherit;
+      font-size: 13.5px;
+      background: #fff;
+      color: var(--text);
+      outline: none;
+    }
+    textarea:focus, input[type="text"]:focus { border-color: var(--brand); }
+    .composer {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-soft);
+    }
+    .input-row { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+    .btn {
+      border: none;
+      border-radius: 8px;
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--brand);
+      color: #fff;
+    }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-secondary { background: #e7e5dc; color: var(--text); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .route-banner {
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: var(--brand-light);
+      font-size: 12px;
+      color: var(--brand);
+      margin-bottom: 12px;
+      display: none;
+    }
+    .output-box {
+      white-space: pre-wrap;
+      font-size: 14px;
+      line-height: 1.65;
+      color: var(--text);
+    }
+    .notes-box {
+      margin-top: 12px;
+      padding: 9px 12px;
+      border-left: 3px solid var(--brand);
+      background: var(--surface-soft);
+      font-size: 12.5px;
+      color: var(--muted);
+      display: none;
+    }
+    .hitl-card {
+      background: var(--warn-bg);
+      border: 1px solid #ecc69c;
+      border-radius: 9px;
+      padding: 12px;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .hitl-title { font-size: 13px; font-weight: 700; color: var(--warn); margin-bottom: 6px; }
+    pre.diff-view {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      background: #1d2220;
+      color: #e6ece8;
+      padding: 9px;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 8px 0;
+      max-height: 180px;
+    }
+    .event-item, .run-item {
+      font-size: 12px;
+      padding: 7px 8px;
+      border-bottom: 1px dashed var(--border);
+      color: var(--muted);
+    }
+    .run-item { cursor: pointer; border-radius: 6px; }
+    .run-item:hover { background: var(--brand-light); color: var(--text); }
+    .tag {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: #eceae2;
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand-group">
+      <span class="brand-title">汇桥 OS · HuiQiao Workbench</span>
+      <span class="pill">C00 众生和谐增上</span>
+      <span class="pill" id="versionPill">v0.1.0-alpha</span>
+    </div>
+    <div style="font-size:12.5px;color:var(--muted);">
+      <span class="status-dot"></span><span id="healthText">100% 本地离线守护就绪</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- 左栏：5 创世种子技能 + 历史运行 -->
+    <section class="panel">
+      <div class="panel-header">
+        <span>创世种子技能 (L0 直通)</span>
+        <span id="skillCount" class="tag">0</span>
+      </div>
+      <div class="panel-body" id="skillList" style="flex: 1.25;"></div>
+      <div class="panel-header">
+        <span>最近持久化运行 (WAL)</span>
+        <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="loadRuns()">刷新</button>
+      </div>
+      <div class="panel-body" id="runList" style="flex: 0.85;"></div>
+    </section>
+
+    <!-- 中栏：三档模式切换 + 任务提交 + 共生交付区 -->
+    <section class="panel">
+      <div class="composer">
+        <div class="mode-bar">
+          <button class="mode-btn selected" data-mode="ask" onclick="selectMode('ask')">
+            <strong>Ask · 只读启发</strong>
+            <span>内核物理禁写，安全问答与摘要</span>
+          </button>
+          <button class="mode-btn" data-mode="plan" onclick="selectMode('plan')">
+            <strong>Plan · 方案预审</strong>
+            <span>必出变更清单与 Diff，确认后执行</span>
+          </button>
+          <button class="mode-btn" data-mode="execute" onclick="selectMode('execute')">
+            <strong>Execute · 受控执行</strong>
+            <span>授权工作区内执行，高危过证据门</span>
+          </button>
+        </div>
+
+        <textarea id="taskInput" rows="3" placeholder="输入你的需求（例如：提炼本地文档精华、整理目录预览、清洗统计 CSV 表格、今日复盘、或请苏格拉底导师拆解难题）..."></textarea>
+
+        <div class="input-row">
+          <input type="text" id="attachInput" placeholder="可选：本地文件或文件夹路径（多个用英文分号 ; 分隔）" />
+          <label style="font-size:12px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:4px;">
+            <input type="checkbox" id="applyCheck" /> 实际归档写入
+          </label>
+          <button class="btn" id="submitBtn" onclick="submitTask()">发送运行</button>
+        </div>
+      </div>
+
+      <div class="panel-body">
+        <div class="route-banner" id="routeBanner"></div>
+        <div class="output-box" id="outputBox">欢迎使用汇桥 OS 本地离线共生工作台。
+左侧可一键体验 5 个创世种子技能，所有轨迹与产物均自动保存在本机 SQLite WAL 状态库中，零外部云端依赖。</div>
+        <div class="notes-box" id="notesBox"></div>
+      </div>
+    </section>
+
+    <!-- 右栏：HITL 人工确认 + 中途改向 + 事件轨迹与产物 -->
+    <section class="panel">
+      <div class="panel-header">
+        <span>安全守卫 · 改向 · 事件账本</span>
+        <span id="activeRunTag" class="tag">无活动运行</span>
+      </div>
+      <div class="panel-body">
+        <div class="hitl-card" id="hitlCard">
+          <div class="hitl-title">等待人类确认 (HITL 闸门挂起)</div>
+          <div id="hitlReason" style="font-size:12.5px;margin-bottom:6px;"></div>
+          <pre class="diff-view" id="hitlDiff" style="display:none;"></pre>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="btn" style="flex:1;padding:6px;" onclick="resumeRun(true)">批准并继续</button>
+            <button class="btn btn-danger" style="flex:1;padding:6px;" onclick="resumeRun(false)">驳回取消</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">中途改向 (Steer)</div>
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="steerInput" placeholder="补充约束或调整方向..." style="padding:6px 9px;font-size:12.5px;" />
+            <button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="sendSteer()">注入</button>
+          </div>
+        </div>
+
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">生成产物 (Artifacts)</div>
+        <div id="artifactList" style="font-size:12px;color:var(--muted);margin-bottom:14px;">暂无产物</div>
+
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">事件流轨迹 (Append-Only)</div>
+        <div id="eventList"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    let currentMode = "ask";
+    let selectedSkillId = null;
+    let currentRunId = null;
+
+    const SKILL_TEMPLATES = {
+      "genesis-doc-digest": { mode: "ask", text: "请提炼文档精华摘要并列出章节脉络：workspace/CONSTITUTION.md", attach: "workspace/CONSTITUTION.md" },
+      "genesis-folder-organizer": { mode: "plan", text: "请扫描目录并输出零删除安全分类方案与 Diff 预览", attach: "docs" },
+      "genesis-table-analyst": { mode: "ask", text: "item,amount,category\n开发板,120,硬件\n传感器,45,硬件\n传感器,45,硬件\n线材,NA,配件", attach: "" },
+      "genesis-daily-reflect": { mode: "ask", text: "今日复盘：完成了统一网关与5个种子技能联调；遇到一处路径白名单小卡点已解决；明天准备推进M08安全沙箱设计，还要整理测试报告。", attach: "" },
+      "genesis-socratic-mentor": { mode: "ask", text: "请用苏格拉底启发式导师方式帮我拆解：独立开发者应该先打磨大而全的平台，还是先交付一个极小但闭环的自用工具？", attach: "" }
+    };
+
+    function selectMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll(".mode-btn").forEach(btn => {
+        btn.classList.toggle("selected", btn.dataset.mode === mode);
+      });
+    }
+
+    function pickSkill(skillId) {
+      selectedSkillId = (selectedSkillId === skillId) ? null : skillId;
+      document.querySelectorAll(".skill-card").forEach(el => {
+        el.classList.toggle("active", el.dataset.id === selectedSkillId);
+      });
+      if (selectedSkillId && SKILL_TEMPLATES[selectedSkillId]) {
+        const tpl = SKILL_TEMPLATES[selectedSkillId];
+        selectMode(tpl.mode);
+        document.getElementById("taskInput").value = tpl.text;
+        document.getElementById("attachInput").value = tpl.attach;
+      }
+    }
+
+    async function initDashboard() {
+      try {
+        const h = await (await fetch("/api/health")).json();
+        document.getElementById("versionPill").textContent = h.version;
+        document.getElementById("healthText").textContent =
+          `离线守护开启 · C00(${h.constitution_sha256.slice(0, 8)}) · ${h.active_skills_count} 技能在线`;
+      } catch (e) {
+        document.getElementById("healthText").textContent = "本地网关连接异常";
+      }
+      await loadSkills();
+      await loadRuns();
+    }
+
+    async function loadSkills() {
+      const data = await (await fetch("/api/skills")).json();
+      document.getElementById("skillCount").textContent = data.count;
+      const box = document.getElementById("skillList");
+      box.innerHTML = "";
+      data.skills.forEach(s => {
+        const div = document.createElement("div");
+        div.className = "skill-card";
+        div.dataset.id = s.skill_id;
+        div.onclick = () => pickSkill(s.skill_id);
+        div.innerHTML = `<div class="skill-name">${s.name} <span class="tag">${s.verifiability}</span></div>
+                         <div class="skill-desc">${s.description}</div>`;
+        box.appendChild(div);
+      });
+    }
+
+    async function loadRuns() {
+      const data = await (await fetch("/api/runs?limit=12")).json();
+      const box = document.getElementById("runList");
+      box.innerHTML = data.runs.length ? "" : "<div class='event-item'>暂无运行记录</div>";
+      data.runs.forEach(r => {
+        const d = document.createElement("div");
+        d.className = "run-item";
+        d.onclick = () => inspectRun(r.run_id);
+        d.innerHTML = `<strong>${r.run_id}</strong> <span class="tag">${r.status}</span><br/><span>${r.flow_name}</span>`;
+        box.appendChild(d);
+      });
+    }
+
+    function renderRunDetail(run) {
+      currentRunId = run.run_id;
+      document.getElementById("activeRunTag").textContent = `${run.run_id} · ${run.status}`;
+
+      const rb = document.getElementById("routeBanner");
+      if (run.route_decision) {
+        const rd = run.route_decision;
+        rb.style.display = "block";
+        rb.textContent = `路由通道: ${rd.channel} | 交互姿态: ${rd.interaction_mode} | 置信度: ${rd.confidence} | 依据: ${rd.rationale}`;
+      }
+
+      document.getElementById("outputBox").textContent =
+        run.summary || run.error || (run.pending_interrupt ? run.pending_interrupt.reason : "执行完成");
+
+      const nb = document.getElementById("notesBox");
+      if (run.model_notes) {
+        nb.style.display = "block";
+        nb.textContent = `透明说明：${run.model_notes}`;
+      } else {
+        nb.style.display = "none";
+      }
+
+      const hitl = document.getElementById("hitlCard");
+      if (run.status === "PAUSED_FOR_HUMAN" && run.pending_interrupt) {
+        hitl.style.display = "block";
+        document.getElementById("hitlReason").textContent = run.pending_interrupt.reason;
+        const diffEl = document.getElementById("hitlDiff");
+        const diffTxt = run.diff_preview || run.pending_interrupt.diff_preview || "";
+        diffEl.style.display = diffTxt ? "block" : "none";
+        diffEl.textContent = diffTxt;
+      } else {
+        hitl.style.display = "none";
+      }
+
+      const artBox = document.getElementById("artifactList");
+      if (run.artifacts && run.artifacts.length) {
+        artBox.innerHTML = run.artifacts.map(a => `<div>• <code>${a.name}</code><br/><span style="font-size:11px;">${a.file_path}</span></div>`).join("");
+      } else {
+        artBox.textContent = "暂无落盘产物";
+      }
+
+      const evBox = document.getElementById("eventList");
+      evBox.innerHTML = (run.events || []).map(ev =>
+        `<div class="event-item"><span class="tag">${ev.event_type}</span> ${ev.node_id || ""}</div>`
+      ).join("");
+    }
+
+    async function submitTask() {
+      const text = document.getElementById("taskInput").value.trim();
+      if (!text) return;
+      const attachRaw = document.getElementById("attachInput").value.trim();
+      const attachments = attachRaw ? attachRaw.split(";").map(s => s.trim()).filter(Boolean) : [];
+      const applyChanges = document.getElementById("applyCheck").checked;
+      const payload = {
+        text,
+        work_mode: currentMode,
+        attachments,
+        allowed_paths: attachments,
+        skill_id: selectedSkillId,
+        metadata: { apply_changes: applyChanges }
+      };
+
+      const btn = document.getElementById("submitBtn");
+      btn.disabled = true;
+      btn.textContent = "运行中...";
+      try {
+        const res = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        renderRunDetail(data);
+        await loadRuns();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "发送运行";
+      }
+    }
+
+    async function inspectRun(runId) {
+      const data = await (await fetch(`/api/runs/${runId}`)).json();
+      renderRunDetail(data);
+    }
+
+    async function resumeRun(approved) {
+      if (!currentRunId) return;
+      const res = await fetch(`/api/runs/${currentRunId}/resume`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approved, work_mode: "execute" })
+      });
+      const data = await res.json();
+      renderRunDetail(data);
+      await loadRuns();
+    }
+
+    async function sendSteer() {
+      const hint = document.getElementById("steerInput").value.trim();
+      if (!currentRunId || !hint) return;
+      const res = await fetch(`/api/runs/${currentRunId}/steer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hint })
+      });
+      const data = await res.json();
+      document.getElementById("steerInput").value = "";
+      renderRunDetail(data);
+    }
+
+    initDashboard();
+  </script>
+</body>
+</html>

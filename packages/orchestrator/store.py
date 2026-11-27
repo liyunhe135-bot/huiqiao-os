@@ -150,6 +150,32 @@ class SqliteStateStore:
                 "updated_at": row["updated_at"],
             }
 
+    def list_runs(self, limit: int = 20) -> list[dict[str, Any]]:
+        """按最近更新时间倒序返回运行记录摘要列表（供 CLI 与 WebUI 展示）。"""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM runs ORDER BY updated_at DESC, rowid DESC LIMIT ?",
+                (max(1, int(limit)),),
+            ).fetchall()
+            return [
+                {
+                    "run_id": r["run_id"],
+                    "task_id": r["task_id"],
+                    "flow_name": r["flow_name"],
+                    "status": r["status"],
+                    "step_count": r["step_count"],
+                    "error": r["error"],
+                    "pending_interrupt": (
+                        json.loads(r["pending_interrupt_json"])
+                        if r["pending_interrupt_json"]
+                        else None
+                    ),
+                    "created_at": r["created_at"],
+                    "updated_at": r["updated_at"],
+                }
+                for r in rows
+            ]
+
     def save_checkpoint(
         self,
         *,

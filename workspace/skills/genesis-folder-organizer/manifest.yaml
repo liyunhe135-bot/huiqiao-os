@@ -1,0 +1,36 @@
+contract_version: "huiqiao/v1"
+skill_id: "genesis-folder-organizer"
+name: "文件夹安全分类预览"
+version: "1.0.0"
+description: "扫描本地目录按类型生成零删除安全归档方案与 Unified Diff 预览；默认仅预览不改动原文件，守护人类最终确认权。"
+status: "ACTIVE"
+verifiability: "HIGH_VERIFIABLE"
+required_permissions:
+  - "READ"
+portable_lite_ready: true
+input_schema:
+  type: "object"
+  properties:
+    attachments:
+      type: "array"
+      items:
+        type: "string"
+    apply_changes:
+      type: "boolean"
+      default: false
+output_schema:
+  type: "object"
+  properties:
+    summary:
+      type: "string"
+    file_count:
+      type: "integer"
+metadata:
+  category: "genesis"
+  triggers:
+    - "整理文件夹"
+    - "目录分类"
+    - "文件夹分类"
+    - "归档预览"
+    - "重命名方案"
+    - "整理目录"

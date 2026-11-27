@@ -14,6 +14,8 @@ forge/logs/
 forge/.active_writer.lock
 .workbuddy/
 branch_workbuddy/
+dev-meta/
+workspace/dev-meta/
 备份/
 data/*.db
 data/*.db-shm
@@ -21,6 +23,7 @@ data/*.db-wal
 models/
 offline_cache/
 workspace/runs/
+workspace/.huiqiao/
 
 # Secrets & OS junk
 .env

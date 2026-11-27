@@ -48,7 +48,7 @@
 
 ---
 
-## 四、当前工程进度与快速验证（M00–M06 已 97/97 全绿）
+## 四、当前工程进度与快速验证（Phase 1 Alpha MVP 已达成 · M00–M07 105/105 全绿）
 
 | 施工块 | 模块定位 | 状态 | 核心目录 |
 | :---: | :--- | :---: | :--- |
@@ -59,18 +59,23 @@
 | **`M04`** | 确定性 6 点生命周期 Hooks、`Ask/Plan/Execute` 硬锁与证据闸门 | ✅ Done | `packages/governance/`, `config/policies.yaml` |
 | **`M05`** | 持久化 ADK 五原语编排、SQLite WAL 强杀续跑与流式状态机 | ✅ Done | `packages/orchestrator/` |
 | **`M06`** | 柔硬结合路由与语义共生执行内核（`L2-S` + `ReActWorker`） | ✅ Done | `packages/router/`, `packages/workers/` |
-| **`M07`** | 统一网关、CLI / 轻量 WebUI 与 5 个创世种子技能（**Alpha MVP**） | 🔜 Next | `packages/gateway/`, `apps/`, `workspace/skills/` |
+| **`M07`** | 统一网关、CLI / 离线 WebUI 与 5 创世种子技能（**`v0.1.0-alpha` MVP**） | ✅ Done | `packages/gateway/`, `apps/`, `workspace/skills/` |
+| **`M08`** | 分级本地安全沙箱（T1 WASM / T2 OS 原生 / T3 隔离容器） | 🔜 Next | `packages/sandbox/` |
 
-### 一分钟本机零 Token 体检与测试
+### 一分钟本机体验与零 Token 测试
 ```powershell
-# 1. 本机硬件/显存/Ollama 零 Token 体检
-python forge/scripts/forge_guard.py preflight
-
-# 2. 跑全量回归测试（当前 M00–M06 合计 97/97 绿灯，失败日志自动脱水 <=35 行）
+# 1. 跑全量回归测试（当前 M00–M07 合计 105/105 绿灯，失败日志自动脱水 <=35 行）
 python forge/scripts/forge_guard.py test tests/
 
-# 3. 积木合规体检 CLI（6/6 通过）
-python -m packages.core.cli
+# 2. 查看 C00 宪章指纹、积木健康与 5 个活跃创世种子技能
+python -m apps.cli.main status
+python -m apps.cli.main skills
+
+# 3. 命令行直接体验只读复盘或启发式难题拆解
+python -m apps.cli.main ask "每日复盘：完成了Alpha网关验收；明天推进安全沙箱"
+
+# 4. 启动 100% 离线零外部依赖本地 WebUI 工作台（默认仅绑定 127.0.0.1:8765）
+python -m apps.cli.main serve
 ```
 
 - **100% 离线便携**：全部交叉引用均已转为相对路径，整目录复制或克隆即可在任意电脑离线查阅、继承与演进。

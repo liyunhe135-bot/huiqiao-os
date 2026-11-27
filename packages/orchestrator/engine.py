@@ -442,6 +442,8 @@ class OrchestratorEngine:
         }
         if node.target_path_key and node.target_path_key in tracker.state:
             ctx["path"] = tracker.state[node.target_path_key]
+        if "allowed_paths" in tracker.state and tracker.state["allowed_paths"]:
+            ctx["allowed_paths"] = tracker.state["allowed_paths"]
         if "old_content" in tracker.state and "new_content" in tracker.state:
             ctx["old_content"] = tracker.state["old_content"]
             ctx["new_content"] = tracker.state["new_content"]

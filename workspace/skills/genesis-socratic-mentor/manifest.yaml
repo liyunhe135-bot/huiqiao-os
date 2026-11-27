@@ -1,0 +1,29 @@
+contract_version: "huiqiao/v1"
+skill_id: "genesis-socratic-mentor"
+name: "启发式难题拆解导师"
+version: "1.0.0"
+description: "遵循 C00 授人以渔原则，将复杂决策或学习难题拆解为本质问题、双视角权衡、底层第一性原理与苏格拉底追问，绝不越俎代庖。"
+status: "ACTIVE"
+verifiability: "LOW_VERIFIABLE"
+required_permissions:
+  - "READ"
+portable_lite_ready: true
+input_schema:
+  type: "object"
+  properties:
+    text:
+      type: "string"
+output_schema:
+  type: "object"
+  properties:
+    summary:
+      type: "string"
+metadata:
+  category: "genesis"
+  triggers:
+    - "苏格拉底"
+    - "难题拆解"
+    - "启发式导师"
+    - "启发拆解"
+    - "授人以渔"
+    - "帮我权衡"

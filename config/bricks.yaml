@@ -77,3 +77,16 @@ slots:
         capabilities: ["lifecycle_hooks", "work_mode_guard", "evidence_gate", "diff_preview"]
         enabled: false
         note: "M04 已落盘并通过 22 项越权与性能单测"
+
+  ingress:
+    active: "m07-local-gateway"
+    bricks:
+      m07-local-gateway:
+        brick_id: "b01-local-gateway"
+        layer: "ingress"
+        version: "0.1.0"
+        contract_version: "huiqiao/v1"
+        entrypoint: "packages.gateway.service:HuiQiaoService"
+        capabilities: ["fastapi_http", "websocket_stream", "typer_cli", "genesis_skills"]
+        enabled: false
+        note: "M07 Alpha MVP 统一网关（支持 CLI / FastAPI / WebSocket / 5 创世种子技能）"

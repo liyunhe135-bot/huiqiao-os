@@ -1,0 +1,33 @@
+contract_version: "huiqiao/v1"
+skill_id: "genesis-table-analyst"
+name: "本地表格清洗与统计"
+version: "1.0.0"
+description: "纯标准库零依赖解析本地 CSV/TSV 表格，自动审计缺失值、重复行与数值列均值/中位数/总和，确保计算结果 100% 精确可复核。"
+status: "ACTIVE"
+verifiability: "HIGH_VERIFIABLE"
+required_permissions:
+  - "READ"
+portable_lite_ready: true
+input_schema:
+  type: "object"
+  properties:
+    attachments:
+      type: "array"
+      items:
+        type: "string"
+output_schema:
+  type: "object"
+  properties:
+    summary:
+      type: "string"
+    row_count:
+      type: "integer"
+metadata:
+  category: "genesis"
+  triggers:
+    - "表格统计"
+    - "清洗表格"
+    - "分析csv"
+    - "csv统计"
+    - "数据汇总"
+    - "表格分析"

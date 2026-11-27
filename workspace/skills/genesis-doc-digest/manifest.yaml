@@ -1,0 +1,33 @@
+contract_version: "huiqiao/v1"
+skill_id: "genesis-doc-digest"
+name: "本地文档精华提炼"
+version: "1.0.0"
+description: "离线解析本地 Markdown/TXT/CSV/JSON/HTML/Word/PDF 文档，输出结构化精华摘要、关键要点与数据表概览，严格保留原文出处。"
+status: "ACTIVE"
+verifiability: "HIGH_VERIFIABLE"
+required_permissions:
+  - "READ"
+portable_lite_ready: true
+input_schema:
+  type: "object"
+  properties:
+    attachments:
+      type: "array"
+      items:
+        type: "string"
+output_schema:
+  type: "object"
+  properties:
+    summary:
+      type: "string"
+    doc_count:
+      type: "integer"
+metadata:
+  category: "genesis"
+  triggers:
+    - "文档精华"
+    - "精华摘要"
+    - "总结文档"
+    - "解析文档"
+    - "提炼文档"
+    - "阅读摘要"

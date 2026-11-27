@@ -1841,7 +1841,7 @@
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-bottom:10px;">
           <div class="hub-card" style="margin-bottom:0;">
             <div style="color:var(--text-muted);font-size:12px;font-weight:700;margin-bottom:5px;">① 当前客户/用户原始输入</div>
-            <pre style="margin:0;max-height:155px;overflow:auto;">${escapeHtml(cmp.original_input || "（输入框为空：请在上方输入需求，教练将实时生成对比优化版）")}</pre>
+            <pre style="margin:0;max-height:175px;overflow:auto;white-space:pre-wrap;word-break:break-word;">${escapeHtml(cmp.original_input || "（输入框为空：请在上方输入需求，教练将实时生成对比优化版）")}</pre>
             ${reuseHtml}
           </div>
           <div class="hub-card" style="margin-bottom:0;border-left-color:var(--cyber-yellow);">
@@ -1849,7 +1849,7 @@
               <span style="color:var(--cyber-yellow);font-size:12px;font-weight:700;">② 教练重构高纯度乐高优化版（防偏移）</span>
               <button class="btn" style="padding:2px 9px;font-size:11px;" onclick="applyCoachOptimized()">✨ 一键套用到输入框</button>
             </div>
-            <pre style="margin:0;max-height:155px;overflow:auto;">${escapeHtml(cmp.optimized_prompt || "")}</pre>
+            <pre style="margin:0;max-height:175px;overflow:auto;white-space:pre-wrap;word-break:break-word;">${escapeHtml(cmp.optimized_prompt || "")}</pre>
           </div>
         </div>
 

@@ -29,6 +29,11 @@ import pathlib
 import sys
 import traceback
 
+class _HQBlockedError(Exception):
+    """审计钩子专用非 OSError 拦截异常：防止 ctypes.LibraryLoader 等标准库
+    以 except OSError 吞并 PermissionError 并伪装成 AttributeError，导致拦截
+    信号被掩盖（父进程误判 blocked=False）。非 OSError 异常无法被其吞并。"""
+
 # 预先导入常见安全纯标准库，确保审计钩子启用后正常代码平滑运行
 import base64, collections, csv, datetime, decimal, fractions, functools, hashlib, itertools, math, re, statistics  # noqa: E401, F401
 
@@ -218,7 +223,7 @@ def _hq_audit_hook(event: str, args: tuple) -> None:
         raise PermissionError(f"[HQ_SANDBOX_BLOCKED] process/shell execution forbidden: {event}")
 
     if event.startswith("ctypes.") or event.startswith("winreg.") or event.startswith("msvcrt."):
-        raise PermissionError(f"[HQ_SANDBOX_BLOCKED] native FFI/registry escape forbidden: {event}")
+        raise _HQBlockedError(f"[HQ_SANDBOX_BLOCKED] native FFI/registry escape forbidden: {event}")
 
     if not ALLOW_NETWORK and event in _BLOCKED_NET_EVENTS:
         raise PermissionError(f"[HQ_SANDBOX_BLOCKED] offline network wall blocked: {event}")

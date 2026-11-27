@@ -34,3 +34,11 @@
 - **后续日常演进建议**：
   - 平时在本机打开工作台：运行 `powershell -ExecutionPolicy Bypass -File scripts/start_huiqiao.ps1` 访问 `http://127.0.0.1:8765`；
   - 积累新的高价值运行后：用 WebUI「存为技能种子」→ `evolve <seed_id> --approve` 双闸门沉淀为本地新技能，并可用 `export-skill` 导出 `.hqskill.zip` 反哺低配设备。
+- **汇桥（DeepSeek 版）验证轮（2026-11-27 15:20）**：
+  - 接管锁后全量复验发现 `test_rt08_ctypes_ffi_escape_blocked` 回归变红：此前对 `packages/sandbox/t2_os.py` 的修复（审计钩子 ctypes/winreg/msvcrt 分支改抛非 OSError 专用异常 `_HQBlockedError`，防 `ctypes.LibraryLoader.__getattr__` 以 `except OSError` 吞并拦截）曾被并发写入覆盖丢失；
+  - 已重新落盘该修复；`forge_guard.py preflight` 与 `forge_guard.py test tests/` **全量 ALL PASS**（exit 0），`v1.0.0` 状态复核一致；
+  - 交接：`packages/sandbox/t2_os.py` 的 `_HQBlockedError` 为安全关键修复，后续合并/重写该文件时请勿回退为 `PermissionError`。
+- **汇桥（DeepSeek 版）自举实战（2026-11-27 16:15）**：
+  - 用系统自身 `run`（L2C_CODEACT + 本地模型 + M08 沙箱）生成「俱舍诵疏·背诵」单文件小程序 → `workspace/demo_apps/jushe_recite.html`（11.9KB，零外部依赖）；
+  - 人工验收发现 3 处功能性伪造（`saveProgress` 拼写错误、遮罩 CSS `content` 对普通元素无效、随机隐藏缺 mode 类）→ 已修复为 `data-orig + textContent` 切换方案；
+  - 已通过 CLI `feedback … correct` 走通 M10 1 秒反馈闭环（5.04ms 落盘 `mem_be33ce2f021d`）；顺带修复 `apps/cli/main.py` 的 GBK 控制台 `UnicodeEncodeError`（stdout 统一 UTF-8）。

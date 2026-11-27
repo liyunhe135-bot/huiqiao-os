@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>俱舍诵疏·背诵</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent-gold: #d4af37;
+            --accent-dim: #8c7326;
+            --mask-color: #121212;
+            --font-serif: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: var(--font-serif);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: var(--accent-gold);
+            font-weight: normal;
+            margin-bottom: 2rem;
+            letter-spacing: 2px;
+            border-bottom: 1px solid var(--accent-dim);
+            padding-bottom: 10px;
+        }
+
+        .verse-box {
+            background-color: #252525;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .verse-text {
+            font-size: 1.5rem;
+            line-height: 2;
+            cursor: pointer;
+            user-select: none; /* 防止选中文本 */
+            position: relative;
+        }
+
+        .char {
+            display: inline-block;
+            transition: color 0.3s ease, opacity 0.3s ease;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        .char:hover {
+            background-color: rgba(212, 175, 55, 0.2);
+            color: var(--accent-gold);
+        }
+
+        .char.revealed {
+            opacity: 1;
+            color: var(--text-primary);
+        }
+
+        .char.masked {
+            opacity: 0.3;
+            color: #444;
+        }
+
+        .verse-controls {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background-color: var(--accent-dim);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-family: inherit;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: var(--accent-gold);
+            color: #000;
+        }
+
+        .explanation-box {
+            margin-top: 2rem;
+            padding: 20px;
+            border-left: 4px solid var(--accent-gold);
+            background-color: #1f1f1f;
+            text-align: left;
+            font-size: 1.1rem;
+        }
+
+        .progress-section {
+            margin-top: 30px;
+            padding: 20px;
+            border-top: 1px solid var(--accent-dim);
+            width: 100%;
+        }
+
+        .progress-bar-container {
+            background-color: #333;
+            height: 10px;
+            border-radius: 5px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            background-color: var(--accent-gold);
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .streak-badge {
+            display: inline-block;
+            background-color: #333;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            color: var(--accent-gold);
+            margin-top: 10px;
+        }
+
+        /* 遮罩状态类 */
+        .mode-masked .char:not(.revealed) {
+            content: "▢";
+            display: inline-block;
+            width: 1em;
+            text-align: center;
+            color: var(--accent-dim);
+        }
+
+        /* 随机隐藏模式 */
+        .mode-random .char.hidden {
+            opacity: 0.3;
+            content: "▢";
+            display: inline-block;
+            width: 1em;
+            text-align: center;
+            color: var(--accent-dim);
+        }
+
+    </style>
+</head>
+<body class="mode-normal">
+
+<div class="container">
+    <h1>俱舍诵疏·背诵</h1>
+
+    <!-- 颂文区域 -->
+    <div class="verse-box" id="verseBox">
+        <div class="verse-text" id="verseText"></div>
+    </div>
+
+    <div class="verse-controls">
+        <button onclick="toggleMask()">一键遮罩 / 揭示</button>
+        <button onclick="randomHide()">随机抽背 (20-40%)</button>
+        <button onclick="revealAll()">全文对照</button>
+        <button onclick="saveProgress()" style="background-color: #3a3a3a;">标记背诵完成</button>
+    </div>
+
+    <!-- 疏释区域 -->
+    <div class="explanation-box">
+        <strong>白话疏释：</strong><br>
+        <span id="whiteText"></span>
+    </div>
+
+    <!-- 进度区域 -->
+    <div class="progress-section">
+        <h3>背诵进度</h3>
+        <div style="display: flex; justify-content: space-between;">
+            <span id="progressText">已背诵：0%</span>
+            <span id="streakText" class="streak-badge">连续打卡：0 天</span>
+        </div>
+        <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="progressBar"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. 数据定义 (严格匹配要求)
+    const VERSE_TEXT = "诸一切种诸冥灭，拔众生出生死泥，顶礼如是如理师，对法藏论我当说。";
+    const WHITE_TEXT = "世尊灭除一切种类的无明黑暗，救拔众生出离生死淤泥；顶礼如此如理宣说之师；这部《阿毗达磨俱舍论》（对法藏），我今当说。";
+
+    // 2. 初始化 DOM
+    const verseTextEl = document.getElementById('verseText');
+    const whiteTextEl = document.getElementById('whiteText');
+    
+    // 渲染疏释 (静态文本)
+    whiteTextEl.textContent = WHITE_TEXT;
+
+    // 渲染颂文 (拆分为字符以便交互)
+    function renderVerse() {
+        verseTextEl.innerHTML = '';
+        VERSE_TEXT.split('').forEach((char, index) => {
+            const span = document.createElement('span');
+            span.className = 'char';
+            span.textContent = char;
+            // 默认状态：显示
+            span.classList.add('revealed'); 
+            verseTextEl.appendChild(span);
+        });
+    }
+
+    renderVerse();
+
+    // 3. 交互逻辑（以 data-orig 保存原文，textContent 切换 ▢ 遮罩）
+
+    let maskState = false;
+
+    function ensureOrig(el) {
+        if (!el.dataset.orig) el.dataset.orig = el.textContent;
+    }
+
+    function setMasked(el, masked) {
+        if (masked) {
+            el.textContent = '▢';
+            el.classList.add('masked');
+            el.classList.remove('revealed');
+        } else {
+            if (el.dataset.orig) el.textContent = el.dataset.orig;
+            el.classList.remove('masked', 'hidden');
+            el.classList.add('revealed');
+        }
+    }
+
+    // A. 一键遮罩 (Toggle Mask)：全部遮为 ▢，点击单字逐个揭示
+    function toggleMask() {
+        maskState = !maskState;
+        document.querySelectorAll('.char').forEach(el => {
+            ensureOrig(el);
+            setMasked(el, maskState);
+        });
+    }
+
+    // 点击遮罩中的单字 → 单独揭示
+    verseTextEl.addEventListener('click', (e) => {
+        const el = e.target;
+        if (el.classList && el.classList.contains('masked')) {
+            ensureOrig(el);
+            setMasked(el, false);
+        }
+    });
+
+    // B. 随机抽背 (Random Hide)：随机隐藏 20%-40% 的字，可点字揭示
+    function randomHide() {
+        const chars = Array.from(document.querySelectorAll('.char'));
+        const count = chars.length;
+        const minHide = Math.floor(count * 0.2);
+        const maxHide = Math.floor(count * 0.4);
+        const hideCount = Math.floor(Math.random() * (maxHide - minHide + 1)) + minHide;
+
+        const indices = Array.from({ length: count }, (_, i) => i);
+        indices.sort(() => Math.random() - 0.5);
+        const hideSet = new Set(indices.slice(0, hideCount));
+
+        chars.forEach((el, index) => {
+            ensureOrig(el);
+            setMasked(el, hideSet.has(index));
+        });
+        maskState = false;
+    }
+
+    // C. 全文对照 (Reveal All)
+    function revealAll() {
+        document.querySelectorAll('.char').forEach(el => {
+            ensureOrig(el);
+            setMasked(el, false);
+        });
+        maskState = false;
+    }
+
+    // 4. 进度与打卡 (LocalStorage)
+    
+    function getProgress() {
+        const saved = localStorage.getItem('jushe_progress');
+        return saved ? JSON.parse(saved) : { completed: [] };
+    }
+
+    function saveProgress() {
+        const progress = getProgress();
+        // 检查是否已标记
+        if (!progress.completed.includes(VERSE_TEXT)) {
+            progress.completed.push(VERSE_TEXT);
+            localStorage.setItem('jushe_progress', JSON.stringify(progress));
+            
+            // 更新 UI
+            updateUI();
+            alert("背诵进度已保存！");
+        } else {
+            alert("该段落已在记录中。");
+        }
+    }
+
+    function checkStreak() {
+        const lastDate = localStorage.getItem('jushe_last_date');
+        const today = new Date().toDateString();
+        
+        if (lastDate !== today) {
+            // 日期变更，重置连续天数（简单逻辑：如果今天没打卡，则中断）
+            // 这里简化处理：每次打开页面检查是否需要更新 lastDate
+            localStorage.setItem('jushe_last_date', today);
+            
+            // 计算连续天数需要更复杂的逻辑，这里仅做基础记录
+            // 为了演示，我们假设只要今天访问且标记了背诵，就视为打卡
+            const progress = getProgress();
+            if (progress.completed.length > 0) {
+                localStorage.setItem('jushe_streak', '1'); // 简化：只要有进度就是第 1 天起算（实际应基于 lastDate）
+            }
+        }
+    }
+
+    function updateUI() {
+        const progress = getProgress();
+        const totalChars = VERSE_TEXT.length;
+        const completedCount = progress.completed.length; // 这里简化为段落数，实际应为字符数或段落完成度
+        
+        // 简单进度条：基于已标记的段落数量（假设每段是一个单位）
+        // 为了更准确，我们可以计算总字符数
+        let totalCompletedChars = 0;
+        progress.completed.forEach(item => {
+            if (item === VERSE_TEXT) {
+                totalCompletedChars += item.length;
+            }
+        });
+
+        const percentage = Math.round((totalCompletedChars / totalChars) * 100);
+        
+        document.getElementById('progressBar').style.width = `${percentage}%`;
+        document.getElementById('progressText').textContent = `已背诵：${percentage}%`;
+        
+        const streak = localStorage.getItem('jushe_streak') || '0';
+        document.getElementById('streakText').textContent = `连续打卡：${streak} 天`;
+    }
+
+    // 初始化检查
+    checkStreak();
+    updateUI();
+
+</script>
+</body>
+</html>

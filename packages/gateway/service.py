@@ -31,6 +31,7 @@ from packages.llm_gateway.ollama_live import (
 )
 from packages.memory import FeedbackKind, FeedbackLoopService, FileFirstMemoryStore
 from packages.orchestrator import (
+    ChuZeSfdpEngine,
     FlowContext,
     FlowPrimitive,
     OrchestratorEngine,
@@ -130,6 +131,12 @@ class HuiQiaoService:
         self.sandbox = sandbox or SandboxManager(
             offline_only=self.guard.offline_only,
             governance_guard=self.guard,
+        )
+        self.sfdp = ChuZeSfdpEngine(
+            self.store,
+            sandbox=self.sandbox,
+            guard=self.guard,
+            constitution=self.constitution,
         )
         resolved_mem_dir = (
             pathlib.Path(memory_dir).resolve()
@@ -697,6 +704,8 @@ class HuiQiaoService:
             "artifacts": artifacts,
             "events": events,
             "feedbacks": self.feedback.list_feedback_events(run_id=run_id),
+            "spec": self.store.get_latest_spec(rec["task_id"]),
+            "delivery": self.store.get_delivery(rec["task_id"]),
             "created_at": rec["created_at"],
             "updated_at": rec["updated_at"],
         }
@@ -898,6 +907,53 @@ class HuiQiaoService:
             constitution=self.constitution,
         )
         return {"active_model": self.active_local_model, "models": self.available_local_models}
+
+    # --- PRD v3.0 铸泽 SFDP（先规格设计 -> 后沙箱构建与五件套交付）服务入口 ---
+    def sfdp_clarify_and_draft(self, goal: str) -> dict[str, Any]:
+        return self.sfdp.generate_clarify_questions(goal)
+
+    def sfdp_update_spec(
+        self,
+        task_id: str,
+        *,
+        goal: str,
+        qa_items: list[dict[str, str]] | None = None,
+        spec_md: str | None = None,
+        plan_md: str | None = None,
+    ) -> dict[str, Any]:
+        return self.sfdp.build_spec_workshop(
+            task_id,
+            goal,
+            qa_items=qa_items,
+            custom_spec_md=spec_md,
+            custom_plan_md=plan_md,
+            freeze=False,
+        )
+
+    def sfdp_build_from_spec(
+        self,
+        task_id: str,
+        *,
+        goal: str,
+        qa_items: list[dict[str, str]] | None = None,
+        spec_md: str | None = None,
+        plan_md: str | None = None,
+    ) -> dict[str, Any]:
+        if qa_items is not None or spec_md is not None or plan_md is not None:
+            self.sfdp.build_spec_workshop(
+                task_id,
+                goal,
+                qa_items=qa_items,
+                custom_spec_md=spec_md,
+                custom_plan_md=plan_md,
+                freeze=True,
+            )
+        out = self.sfdp.build_and_converge(
+            task_id,
+            goal=goal,
+            infer_fn=self._codeact_infer_fn,
+        )
+        return self.get_run(out["run_id"])
 
     def list_recent_runs(self, limit: int = 20) -> list[dict[str, Any]]:
         return self.store.list_runs(limit=limit)

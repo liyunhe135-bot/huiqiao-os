@@ -71,6 +71,18 @@ class SelectModelRequest(BaseModel):
     model: str = Field(..., min_length=1)
 
 
+class SfdpClarifyRequest(BaseModel):
+    goal: str = Field(..., min_length=1)
+
+
+class SfdpSpecBuildRequest(BaseModel):
+    task_id: str = Field(..., min_length=1)
+    goal: str = Field(..., min_length=1)
+    qa_items: list[dict[str, str]] | None = Field(default=None)
+    spec_md: str | None = Field(default=None)
+    plan_md: str | None = Field(default=None)
+
+
 def create_app(
     service: HuiQiaoService | None = None,
     *,
@@ -327,6 +339,39 @@ def create_app(
                 if fp.is_file():
                     return FileResponse(fp)
         raise HTTPException(status_code=404, detail=f"未找到产物: {artifact_name}")
+
+    @app.post("/sfdp/clarify")
+    @app.post("/api/sfdp/clarify")
+    def sfdp_clarify(req: SfdpClarifyRequest) -> dict[str, Any]:
+        return svc.sfdp_clarify_and_draft(req.goal)
+
+    @app.post("/sfdp/spec")
+    @app.post("/api/sfdp/spec")
+    def sfdp_update_spec(req: SfdpSpecBuildRequest) -> dict[str, Any]:
+        try:
+            return svc.sfdp_update_spec(
+                req.task_id,
+                goal=req.goal,
+                qa_items=req.qa_items,
+                spec_md=req.spec_md,
+                plan_md=req.plan_md,
+            )
+        except (ValueError, PermissionError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/sfdp/build")
+    @app.post("/api/sfdp/build")
+    def sfdp_build(req: SfdpSpecBuildRequest) -> dict[str, Any]:
+        try:
+            return svc.sfdp_build_from_spec(
+                req.task_id,
+                goal=req.goal,
+                qa_items=req.qa_items,
+                spec_md=req.spec_md,
+                plan_md=req.plan_md,
+            )
+        except (ValueError, PermissionError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.websocket("/ws/tasks")
     async def ws_stream_tasks(ws: WebSocket) -> None:

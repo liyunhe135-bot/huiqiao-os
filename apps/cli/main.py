@@ -4,9 +4,14 @@ from __future__ import annotations
 
 import json
 import pathlib
+import sys
 from typing import Optional
 
 import typer
+
+# Windows GBK 控制台兼容：输出统一 UTF-8，防 summary 中的 ▢/emoji 触发 UnicodeEncodeError
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from packages.core.contracts import WorkMode
 from packages.gateway.service import HuiQiaoService

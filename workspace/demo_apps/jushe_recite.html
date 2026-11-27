@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>俱舍诵疏·背诵 v2</title>
+<style>
+  :root {
+    --bg: #141414; --panel: #1e1e1e; --panel2: #262626;
+    --fg: #e6e2d8; --dim: #9a948a; --gold: #c9a94e; --gold-dim: #7a6a33;
+    --ok: #6aa86a; --bad: #b06a5a;
+    --serif: 'Noto Serif SC','Songti SC','SimSun',Georgia,serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px; background: var(--bg); color: var(--fg);
+    font-family: var(--serif); line-height: 1.7;
+    display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+  }
+  .app { width: 100%; max-width: 720px; }
+  h1 { text-align: center; color: var(--gold); font-weight: normal; letter-spacing: 6px; font-size: 1.5rem; margin: 8px 0 4px; }
+  .sub { text-align: center; color: var(--dim); font-size: .85rem; margin-bottom: 14px; }
+
+  /* ── 上下文状态条（本 v2 核心：一切状态可见） ── */
+  .ctxbar {
+    background: var(--panel); border: 1px solid #333; border-radius: 10px;
+    padding: 10px 14px; margin-bottom: 14px; font-size: .85rem; color: var(--dim);
+    display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center;
+  }
+  .ctxbar b { color: var(--gold); font-weight: normal; }
+  .ctxbar .pill {
+    background: var(--panel2); border-radius: 12px; padding: 2px 10px; color: var(--fg);
+  }
+
+  /* ── 段落选择 ── */
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tabs button {
+    flex: 1; min-width: 96px; background: var(--panel); color: var(--dim);
+    border: 1px solid #333; border-radius: 8px; padding: 8px 4px; cursor: pointer;
+    font-family: inherit; font-size: .9rem; transition: all .2s;
+  }
+  .tabs button.on { background: var(--gold-dim); color: #fff; border-color: var(--gold); }
+  .tabs button small { display: block; color: var(--dim); font-size: .72rem; }
+
+  .verse-box {
+    background: var(--panel); border-radius: 12px; padding: 26px 18px;
+    margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.4);
+  }
+  .verse-text { font-size: 1.45rem; line-height: 2.4; text-align: center; letter-spacing: 2px; }
+  .char {
+    display: inline-block; padding: 1px 2px; border-radius: 4px; cursor: pointer;
+    transition: color .15s, background .15s; min-width: 1.2em;
+  }
+  .char.ok    { color: var(--ok); }
+  .char.new   { color: var(--gold); }
+  .char.weak  { color: var(--bad); border-bottom: 2px dotted var(--bad); }
+  .char.blank { color: #555; }
+  .char:hover { background: rgba(201,169,78,.18); }
+
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 14px; }
+  .controls button {
+    background: var(--gold-dim); color: #fff; border: none; border-radius: 8px;
+    padding: 10px 16px; cursor: pointer; font-family: inherit; font-size: .95rem;
+  }
+  .controls button.ghost { background: var(--panel); border: 1px solid #444; color: var(--dim); }
+  .controls button:hover { filter: brightness(1.2); }
+
+  .gloss {
+    background: var(--panel); border-left: 4px solid var(--gold);
+    padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 14px;
+    font-size: 1rem; color: var(--fg);
+  }
+  .gloss small { color: var(--dim); }
+
+  .hist { color: var(--dim); font-size: .8rem; text-align: center; margin-top: 4px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+    background: #2d2a1e; border: 1px solid var(--gold-dim); color: var(--fg);
+    padding: 10px 18px; border-radius: 10px; font-size: .9rem; opacity: 0;
+    transition: opacity .25s; pointer-events: none; z-index: 9;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>俱舍诵疏·背诵</h1>
+  <div class="sub">阿毗达磨俱舍论 · 分别界品颂 · 本地离线</div>
+
+  <!-- 上下文状态条：模式 / 段 / 进度 / 生疏字 / 打卡，全部可见 -->
+  <div class="ctxbar" id="ctxBar"></div>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="verse-box">
+    <div class="verse-text" id="verse"></div>
+  </div>
+
+  <div class="controls">
+    <button id="btnMask" class="ghost">遮字背诵</button>
+    <button id="btnQuiz" class="ghost">随机抽背</button>
+    <button id="btnReveal" class="ghost">全文对照</button>
+    <button id="btnDone">标记本段已背熟</button>
+  </div>
+
+  <div class="gloss" id="gloss"></div>
+  <div class="hist" id="hist"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+/* ═══════════════ 1. 内容数据（玄奘译《俱舍论》分别界品，逐字核对） ═══════════════ */
+const PASSAGES = [
+  { id: 'p1', title: '归敬颂',
+    verse: '诸一切种诸冥灭，拔众生出生死泥，顶礼如是如理师，对法藏论我当说。',
+    gloss: '世尊灭除一切种类的无明黑暗，救拔众生出离生死淤泥；顶礼如此如理宣说之师；这部《阿毗达磨俱舍论》（对法藏），我今当说。' },
+  { id: 'p2', title: '有漏颂',
+    verse: '有漏无漏法，除道余有为；于彼漏随增，故说名有漏。',
+    gloss: '除道谛以外的一切有为法都称为有漏：因为烦恼（漏）会随顺在这些法上增长。' },
+  { id: 'p3', title: '无漏颂',
+    verse: '无漏谓道谛，及三种无为；谓虚空二灭，此中空无碍。',
+    gloss: '无漏法是道谛与三种无为——虚空、择灭、非择灭；其中虚空的体性是无所障碍。' },
+];
+
+/* ═══════════════ 2. 上下文状态模型（单一 localStorage 键，带版本迁移） ═══════════════
+ * state = {
+ *   v: 2,
+ *   current: passageId,                       // 上下文：当前段
+ *   mode: 'browse' | 'mask' | 'quiz',         // 上下文：当前模式
+ *   blank: Set<charIndex>,                    // 上下文：当前被遮的字（会话内，不持久化）
+ *   mastery: { [passageId]: { [charIdx]: { level:0-3, wrong:n, last:ts } } },
+ *   streak: { last:'YYYY-MM-DD', count:number },
+ *   doneCount: number,                        // 累计背熟段次
+ *   sessions: [{ ts, passage, mode, hidden, weak }]  // 最近 20 次会话上下文
+ * }
+ */
+const KEY = 'jushe_v2_state';
+const MAX_HISTORY = 20;
+
+let state = load();
+let blank = new Set();          // 当前遮罩字索引（会话上下文）
+let mode = 'browse';
+
+function load() {
+  const fallback = { v: 2, current: 'p1', mastery: {}, streak: { last: '', count: 0 },
+                     doneCount: 0, sessions: [] };
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return fallback;
+    const s = JSON.parse(raw);
+    if (!s || s.v !== 2) return fallback;          // 版本不符 → 重置（可扩展迁移表）
+    return Object.assign(fallback, s);
+  } catch { return fallback; }
+}
+function save() {
+  const persist = { v: state.v, current: state.current, mastery: state.mastery,
+                    streak: state.streak, doneCount: state.doneCount, sessions: state.sessions };
+  localStorage.setItem(KEY, JSON.stringify(persist));
+}
+
+/* ═══════════════ 3. 工具函数 ═══════════════ */
+const $ = (id) => document.getElementById(id);
+const pad = (n) => String(n).padStart(2, '0');
+const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const passage = () => PASSAGES.find(p => p.id === state.current) || PASSAGES[0];
+const mFor = (pid, idx) => (state.mastery[pid] && state.mastery[pid][idx]) || { level: 0, wrong: 0, last: 0 };
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 1800); }
+
+/* ═══════════════ 4. 渲染 ═══════════════ */
+function renderTabs() {
+  const box = $('tabs'); box.innerHTML = '';
+  PASSAGES.forEach(p => {
+    const b = document.createElement('button');
+    if (p.id === state.current) b.classList.add('on');
+    const st = state.mastery[p.id] || {};
+    const known = Object.values(st).filter(m => m.level >= 3).length;
+    b.innerHTML = `${p.title}<small>熟 ${known}/${p.verse.replace(/[，。；]/g, '').length} 字</small>`;
+    b.onclick = () => { state.current = p.id; blank.clear(); mode = 'browse'; save(); renderAll(); };
+    box.appendChild(b);
+  });
+}
+
+function renderVerse() {
+  const p = passage();
+  const el = $('verse'); el.innerHTML = '';
+  p.verse.split('').forEach((ch, idx) => {
+    if (ch === '，' || ch === '。' || ch === '；') {           // 标点：原样文本节点，不参与遮罩与统计
+      el.appendChild(document.createTextNode(ch));
+      return;
+    }
+    const m = mFor(p.id, idx);
+    const span = document.createElement('span');
+    span.className = 'char';
+    span.dataset.idx = idx;
+    if (blank.has(idx)) { span.textContent = '▢'; span.classList.add('blank'); }
+    else {
+      span.textContent = ch;
+      if (m.level >= 3) span.classList.add('ok');
+      else if (m.level >= 1) span.classList.add('new');
+      else span.classList.add('weak');
+    }
+    el.appendChild(span);
+  });
+}
+
+function renderGloss() {
+  const p = passage();
+  $('gloss').innerHTML = `<small>【${p.title} · 白话疏释】</small><br>${p.gloss}`;
+}
+
+function renderCtx() {
+  const p = passage();
+  const chars = p.verse.replace(/[，。；]/g, '').length;
+  const st = state.mastery[p.id] || {};
+  const known = Object.values(st).filter(m => m.level >= 3).length;
+  const weakList = Object.entries(st).filter(([, m]) => m.level <= 1).map(([i]) => i);
+  const modeName = { browse: '浏览', mask: '遮字', quiz: '抽背' }[mode] || '浏览';
+  const lastSession = state.sessions.length ? state.sessions[state.sessions.length - 1] : null;
+  $('ctxBar').innerHTML =
+    `<span>模式 <b class="pill">${modeName}</b></span>` +
+    `<span>本段 <b class="pill">${known}/${chars} 字已熟</b></span>` +
+    `<span>生疏字 <b class="pill">${weakList.length}</b></span>` +
+    `<span>连续打卡 <b class="pill">${state.streak.count} 天</b></span>` +
+    `<span>累计背熟 <b class="pill">${state.doneCount} 段次</b></span>`;
+  const hs = lastSession
+    ? `上次上下文：${lastSession.passage} · ${lastSession.mode} · 遮 ${lastSession.hidden} 字 · 生疏 ${lastSession.weak} 字（${lastSession.ts}）`
+    : '暂无历史上下文';
+  $('hist').textContent = hs;
+}
+
+function renderAll() { renderTabs(); renderVerse(); renderGloss(); renderCtx(); }
+
+/* ═══════════════ 5. 交互：遮字 / 抽背 / 对照 / 评分 ═══════════════ */
+function maskAll() {
+  const p = passage();
+  blank = new Set(p.verse.split('').map((ch, i) => /[，。；]/.test(ch) ? -1 : i).filter(i => i >= 0));
+  mode = 'mask';
+  renderAll();
+}
+
+function quizHide() {
+  const p = passage();
+  const chars = p.verse.split('').map((ch, idx) => ({ ch, idx }));
+  const letters = chars.filter(c => !/[，。；]/.test(c.ch));
+  const n = letters.length;
+  const hideCount = Math.min(n - 2, Math.max(1, Math.floor(n * (0.2 + Math.random() * 0.2))));
+  // 加权抽样：生疏字(level<=1)优先被抽到，已熟字(level>=3)偶尔复检
+  const weights = letters.map(({ idx }) => {
+    const m = mFor(p.id, idx);
+    if (m.level <= 1) return 6;
+    if (m.level === 2) return 3;
+    return 1;
+  });
+  const chosen = new Set();
+  const pool = letters.slice();
+  while (chosen.size < hideCount && pool.length) {
+    const total = pool.reduce((s, c) => s + weights[letters.indexOf(c)], 0);
+    let r = Math.random() * total, pick = 0;
+    for (let i = 0; i < pool.length; i++) { r -= weights[letters.indexOf(pool[i])]; if (r <= 0) { pick = i; break; } }
+    chosen.add(pool[pick].idx);
+    pool.splice(pick, 1);
+  }
+  blank = chosen;
+  mode = 'quiz';
+  renderAll();
+}
+
+function revealAll() {
+  blank.clear();
+  mode = 'browse';
+  renderAll();
+}
+
+/* 抽背后的 1 键自评：诚实打分驱动逐字熟练度（间隔复习的数据源） */
+function gradeQuiz(correct) {
+  const p = passage();
+  const st = state.mastery[p.id] || (state.mastery[p.id] = {});
+  let weak = 0;
+  blank.forEach(idx => {
+    const m = st[idx] || (st[idx] = { level: 0, wrong: 0, last: 0 });
+    if (correct) { m.level = Math.min(3, m.level + 1); }
+    else { m.level = Math.max(0, m.level - 1); m.wrong += 1; weak++; }
+    m.last = Date.now();
+  });
+  recordSession(p.title, 'quiz', blank.size, weak);
+  blank.clear(); mode = 'browse'; save(); renderAll();
+  toast(correct ? '随喜！生疏字熟练度 +1' : `已记 ${weak} 个生疏字，下次优先抽考`);
+}
+
+/* 标记本段已背熟：全部字升满级 + 正确连续打卡算法 */
+function markDone() {
+  const p = passage();
+  const st = state.mastery[p.id] || (state.mastery[p.id] = {});
+  const letters = p.verse.replace(/[，。；]/g, '').split('');
+  letters.forEach((_, i) => { const m = st[i] || (st[i] = { level: 0, wrong: 0, last: 0 }); m.level = 3; m.last = Date.now(); });
+
+  const today = dayKey(new Date());
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const yesterday = dayKey(y);
+  if (state.streak.last === today) { /* 今日已打卡，不重复累计 */ }
+  else if (state.streak.last === yesterday) { state.streak.count += 1; }
+  else { state.streak.count = 1; }
+  state.streak.last = today;
+  state.doneCount += 1;
+  recordSession(p.title, 'done', 0, 0);
+  save(); renderAll();
+  toast(`本段已背熟 · 连续打卡 ${state.streak.count} 天`);
+}
+
+function recordSession(passageName, m, hidden, weak) {
+  state.sessions.push({ ts: new Date().toISOString().slice(0, 16).replace('T', ' '),
+                        passage: passageName, mode: m, hidden, weak });
+  if (state.sessions.length > MAX_HISTORY) state.sessions.shift();
+}
+
+/* ═══════════════ 6. 事件绑定 ═══════════════ */
+$('btnMask').onclick = () => (mode === 'mask' ? revealAll() : maskAll());
+$('btnQuiz').onclick = () => {
+  if (mode === 'quiz' && blank.size) {
+    const correct = confirm('对照完毕：刚才默想对了吗？\n「确定」= 背对了（熟练度+1）\n「取消」= 有生疏（记入生疏字池）');
+    gradeQuiz(correct);
+    return;
+  }
+  quizHide();
+};
+$('btnReveal').onclick = () => {
+  if (mode === 'quiz' && blank.size) {
+    const hidden = blank.size;
+    revealAll();
+    toast(`对照中（本局遮了 ${hidden} 字）——请在内心默想，然后点「随机抽背」自评`);
+    return;
+  }
+  revealAll();
+};
+$('btnDone').onclick = markDone;
+
+// 点击单字：遮字模式下逐个揭示（上下文逐步恢复）
+$('verse').addEventListener('click', (e) => {
+  const el = e.target.closest('.char');
+  if (!el) return;
+  const idx = Number(el.dataset.idx);
+  if (mode === 'mask' && blank.has(idx)) {
+    blank.delete(idx);
+    renderVerse(); renderCtx();
+  }
+});
+
+/* ═══════════════ 7. 启动：恢复上次上下文 ═══════════════ */
+renderAll();
+</script>
+</body>
+</html>

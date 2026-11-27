@@ -81,6 +81,36 @@ class SfdpSpecBuildRequest(BaseModel):
     qa_items: list[dict[str, str]] | None = Field(default=None)
     spec_md: str | None = Field(default=None)
     plan_md: str | None = Field(default=None)
+    session_id: str | None = Field(default=None)
+    follow_context: bool = Field(default=True)
+
+
+class SkillPlanCreateRequest(BaseModel):
+    title: str = Field(..., min_length=1)
+    goal: str = Field(..., min_length=1)
+    category: str = Field(default="自定义规划")
+    priority: str = Field(default="P1")
+    triggers: list[str] = Field(default_factory=list)
+
+
+class IncubatePlanRequest(BaseModel):
+    auto_activate: bool = Field(default=True)
+
+
+class ExperienceCreateRequest(BaseModel):
+    title: str = Field(..., min_length=1)
+    pitfall: str = Field(default="")
+    rule: str = Field(..., min_length=1)
+    category: str = Field(default="研发防坑")
+    auto_inject: bool = Field(default=True)
+
+
+class ExperienceToggleRequest(BaseModel):
+    auto_inject: bool = Field(default=True)
+
+
+class SessionCreateRequest(BaseModel):
+    title: str = Field(default="新项目连续会话")
 
 
 def create_app(
@@ -369,9 +399,86 @@ def create_app(
                 qa_items=req.qa_items,
                 spec_md=req.spec_md,
                 plan_md=req.plan_md,
+                session_id=req.session_id,
+                follow_context=req.follow_context,
             )
         except (ValueError, PermissionError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # --- 三大持久中枢（Skill 规划管理库 · 经验防坑库 · 不断档上下文跟踪）REST API ---
+    @app.get("/hub/overview")
+    @app.get("/api/hub/overview")
+    def get_hub_overview() -> dict[str, Any]:
+        return svc.get_hub_overview()
+
+    @app.post("/hub/skills/plan")
+    @app.post("/api/hub/skills/plan")
+    def create_skill_plan(req: SkillPlanCreateRequest) -> dict[str, Any]:
+        return svc.add_skill_plan(
+            title=req.title,
+            goal=req.goal,
+            category=req.category,
+            priority=req.priority,
+            triggers=req.triggers,
+        )
+
+    @app.post("/hub/skills/plan/{plan_id}/incubate")
+    @app.post("/api/hub/skills/plan/{plan_id}/incubate")
+    def incubate_skill_plan(plan_id: str, req: IncubatePlanRequest | None = None) -> dict[str, Any]:
+        body = req or IncubatePlanRequest()
+        try:
+            return svc.incubate_skill_plan(plan_id, auto_activate=body.auto_activate)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.delete("/hub/skills/plan/{plan_id}")
+    @app.delete("/api/hub/skills/plan/{plan_id}")
+    def remove_skill_plan(plan_id: str) -> dict[str, Any]:
+        try:
+            return svc.delete_skill_plan(plan_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.post("/hub/experiences")
+    @app.post("/api/hub/experiences")
+    def create_experience(req: ExperienceCreateRequest) -> dict[str, Any]:
+        return svc.add_experience_rule(
+            title=req.title,
+            pitfall=req.pitfall,
+            rule=req.rule,
+            category=req.category,
+            auto_inject=req.auto_inject,
+        )
+
+    @app.post("/hub/experiences/{exp_id}/toggle")
+    @app.post("/api/hub/experiences/{exp_id}/toggle")
+    def toggle_experience(exp_id: str, req: ExperienceToggleRequest) -> dict[str, Any]:
+        try:
+            return svc.toggle_experience_rule(exp_id, req.auto_inject)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.delete("/hub/experiences/{exp_id}")
+    @app.delete("/api/hub/experiences/{exp_id}")
+    def remove_experience(exp_id: str) -> dict[str, Any]:
+        try:
+            return svc.delete_experience_rule(exp_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.post("/hub/sessions")
+    @app.post("/api/hub/sessions")
+    def create_session(req: SessionCreateRequest | None = None) -> dict[str, Any]:
+        body = req or SessionCreateRequest()
+        return svc.create_context_session(body.title)
+
+    @app.post("/hub/sessions/{session_id}/switch")
+    @app.post("/api/hub/sessions/{session_id}/switch")
+    def switch_session(session_id: str) -> dict[str, Any]:
+        try:
+            return svc.switch_context_session(session_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.websocket("/ws/tasks")
     async def ws_stream_tasks(ws: WebSocket) -> None:

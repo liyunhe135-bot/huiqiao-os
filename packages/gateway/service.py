@@ -24,6 +24,7 @@ from packages.core.contracts import (
 from packages.evolution import SelfEvolutionEngine
 from packages.gateway.skills_loader import SkillRegistry
 from packages.governance import GovernanceGuard
+from packages.hub import TrinityContinuityHub
 from packages.llm_gateway.ollama_live import (
     list_ollama_models,
     make_ollama_infer_fn,
@@ -155,6 +156,14 @@ class HuiQiaoService:
             sandbox=self.sandbox,
             skill_registry=self.skills,
         )
+        self.hub = TrinityContinuityHub(
+            workspace_dir=resolved_mem_dir,
+            memory=self.memory,
+            feedback=self.feedback,
+            evolution=self.evolution,
+            skills=self.skills,
+            run_store=self.store,
+        )
         self.capability_profile = capability_profile
 
     def healthcheck(self) -> dict[str, Any]:
@@ -241,6 +250,26 @@ class HuiQiaoService:
                 primary_model_role="fast_router",
                 rationale=f"用户显式指定执行创世/工作区技能 {manifest.skill_id}",
             )
+
+        # 不断档上下文连续路由：若当前会话已绑定上一轮生成的应用代码文件(.html/.py)，且用户在追加修改，直通 L2-C CodeAct 增量演进！
+        meta = envelope.metadata or {}
+        if bool(meta.get("follow_context", True)) and not (envelope.input and envelope.input.attachments):
+            ses = self.hub.get_active_session()
+            pinned_art = str(ses.get("pinned_artifact_path") or "").lower()
+            raw_txt = envelope.raw_input or ""
+            if pinned_art.endswith((".html", ".py")) and any(
+                kw in raw_txt for kw in ("继续", "加上", "增加", "再加", "修改", "改成", "优化", "完善", "补充", "调整", "修复")
+            ):
+                return RouteDecision(
+                    task_id=envelope.task_id,
+                    verifiability=Verifiability.HIGH_VERIFIABLE,
+                    channel=ExecutionChannel.L2C_CODEACT,
+                    interaction_mode=InteractionMode.COPILOT_EXECUTE,
+                    sandbox_tier=SandboxTier.T2_OS_RESTRICTED,
+                    confidence=0.95,
+                    primary_model_role="coder_planner",
+                    rationale="检测到当前连续会话已绑定代码产物且用户发起跟进修改，自动延续 L2-C 沙箱增量迭代",
+                )
         return decision
 
     def _build_flow(self, envelope: TaskEnvelope, decision: RouteDecision) -> FlowPrimitive:
@@ -304,13 +333,20 @@ class HuiQiaoService:
             )
 
             def _run_l2s(ctx: FlowContext) -> dict[str, Any]:
+                follow_ctx = bool(meta.get("follow_context", True))
+                ses_id = str(meta.get("session_id") or "") or None
+                ctx_pack = self.hub.prepare_continuous_context(
+                    envelope.raw_input or "",
+                    session_id=ses_id,
+                    follow_context=follow_ctx,
+                )
                 recalled = self.memory.recall(envelope.raw_input or "", top_k=3)
                 mem_hint = ""
                 if recalled:
                     mem_lines = "; ".join(r["content"] for r in recalled)
                     mem_hint = f"[本地记忆偏好]: {mem_lines}"
-                parts = [p for p in ( *ctx.steering_hints, mem_hint ) if p]
-                hint = "；".join(parts) if parts else None
+                parts = [p for p in (*ctx.steering_hints, mem_hint, ctx_pack["guardrail_block"]) if p]
+                hint = "\n".join(parts) if parts else None
                 out = self.semantic_worker.run(
                     StepInput(
                         run_id=ctx.run_id,
@@ -318,6 +354,7 @@ class HuiQiaoService:
                         goal=envelope.raw_input or "",
                         work_mode=envelope.constraints.work_mode,
                         interaction_mode=decision.interaction_mode,
+                        context_messages=ctx_pack["context_messages"],
                         steering_hint=hint,
                     )
                 )
@@ -330,8 +367,12 @@ class HuiQiaoService:
                 saved = ctx.save_artifact("semantic_notes.md", out.summary)
                 art_paths.append(str(saved))
                 notes = out.model_notes
+                trace_tags = [f"🔗 会话第 {ctx_pack['turn_index']} 轮跟进"]
+                if ctx_pack["matched_experiences"]:
+                    trace_tags.append(f"🛡️ 挂载 {len(ctx_pack['matched_experiences'])} 条经验护栏")
                 if recalled:
-                    notes = f"{notes} | 已结合 {len(recalled)} 条本地透明记忆".strip(" |")
+                    trace_tags.append(f"已结合 {len(recalled)} 条本地透明记忆")
+                notes = f"{notes} | {' · '.join(trace_tags)}".strip(" |")
                 return {
                     "summary": out.summary,
                     "model_notes": notes,
@@ -414,6 +455,13 @@ class HuiQiaoService:
                     else (self.store.artifacts_root / ctx.run_id / "sandbox_ws").resolve()
                 )
                 ws_dir.mkdir(parents=True, exist_ok=True)
+                follow_ctx = bool(meta.get("follow_context", True))
+                ses_id = str(meta.get("session_id") or "") or None
+                ctx_pack = self.hub.prepare_continuous_context(
+                    envelope.raw_input or "",
+                    session_id=ses_id,
+                    follow_context=follow_ctx,
+                )
                 ca_worker = CodeActWorker(
                     infer_fn=self._codeact_infer_fn,
                     sandbox=self.sandbox,
@@ -424,15 +472,22 @@ class HuiQiaoService:
                     verifier_code=str(meta.get("verifier_code", "")).strip() or None,
                     timeout_sec=30.0,
                 )
-                hint = "；".join(ctx.steering_hints) if ctx.steering_hints else None
+                steer_parts = [p for p in (*ctx.steering_hints, ctx_pack["guardrail_block"]) if p]
+                hint = "\n".join(steer_parts) if steer_parts else None
+                effective_goal = (
+                    ctx_pack["augmented_goal"]
+                    if ctx_pack["attached_prev_artifact"]
+                    else (envelope.raw_input or "")
+                )
                 out = ca_worker.run(
                     StepInput(
                         run_id=ctx.run_id,
                         task_id=ctx.task_id,
-                        goal=envelope.raw_input or "",
+                        goal=effective_goal,
                         work_mode=envelope.constraints.work_mode,
                         interaction_mode=decision.interaction_mode,
                         effective_ctx_budget=decision.capability_check.effective_ctx_budget,
+                        context_messages=ctx_pack["context_messages"],
                         steering_hint=hint,
                     )
                 )
@@ -446,19 +501,33 @@ class HuiQiaoService:
                         registered_paths.append(str(saved_art))
                     else:
                         registered_paths.append(str(art_p))
+                base_note = out.model_notes or f"已由本地模型 ({self.active_local_model or 'custom'}) 在 M08 安全沙箱内生成并验证通过。"
+                trace_bits = [f"🔗 会话第 {ctx_pack['turn_index']} 轮不断档"]
+                if ctx_pack["attached_prev_artifact"]:
+                    trace_bits.append("📎 已继承上一版代码增量演进")
+                if ctx_pack["matched_experiences"]:
+                    trace_bits.append(f"🛡️ 已自动挂载 {len(ctx_pack['matched_experiences'])} 条经验防坑护栏")
                 return {
                     "summary": out.summary,
-                    "model_notes": out.model_notes or f"已由本地模型 ({self.active_local_model or 'custom'}) 在 M08 安全沙箱内生成并验证通过。",
+                    "model_notes": f"{base_note} | {' · '.join(trace_bits)}",
                     "artifact_paths": registered_paths,
                 }
 
             if self._react_infer_fn is not None:
+                follow_ctx = bool(meta.get("follow_context", True))
+                ses_id = str(meta.get("session_id") or "") or None
+                ctx_pack = self.hub.prepare_continuous_context(
+                    envelope.raw_input or "",
+                    session_id=ses_id,
+                    follow_context=follow_ctx,
+                )
                 worker = ReActWorker(
                     infer_fn=self._react_infer_fn,
                     guard=self.guard,
                     constitution=self.constitution,
                 )
-                hint = "；".join(ctx.steering_hints) if ctx.steering_hints else None
+                steer_parts = [p for p in (*ctx.steering_hints, ctx_pack["guardrail_block"]) if p]
+                hint = "\n".join(steer_parts) if steer_parts else None
                 out = worker.run(
                     StepInput(
                         run_id=ctx.run_id,
@@ -466,6 +535,7 @@ class HuiQiaoService:
                         goal=envelope.raw_input or "",
                         work_mode=envelope.constraints.work_mode,
                         interaction_mode=decision.interaction_mode,
+                        context_messages=ctx_pack["context_messages"],
                         steering_hint=hint,
                     )
                 )
@@ -615,6 +685,21 @@ class HuiQiaoService:
                     payload=decision.model_dump(mode="json"),
                 )
 
+        # 任务完成后自动写入不断档上下文跟踪链
+        rec_done = self.store.get_run(run_id)
+        if rec_done and rec_done.get("status") == "COMPLETED":
+            meta_in = envelope.metadata or {}
+            ses_id = str(meta_in.get("session_id") or "") or None
+            arts = self.store.list_artifacts(run_id)
+            st_done = rec_done.get("state") or {}
+            self.hub.record_turn_completion(
+                session_id=ses_id,
+                run_id=run_id,
+                raw_goal=envelope.raw_input or "",
+                summary=str(st_done.get("summary") or ""),
+                artifacts=arts,
+            )
+
     def submit_task(
         self,
         text: str,
@@ -740,6 +825,17 @@ class HuiQiaoService:
                 "created_seed_id": ev.created_seed_id,
             },
         )
+        # 用户每次点击『纠偏写入记忆』时，同步沉淀进经验防坑库，后续任务自动挂载防复发！
+        if ev.kind == FeedbackKind.CORRECT and ev.note.strip():
+            raw_goal = str(run_snap.get("raw_input") or "运行纠偏").strip()
+            self.hub.add_experience(
+                title=f"纠偏：{raw_goal[:18]}",
+                pitfall=f"运行 {run_id} 中出现的偏差",
+                rule=ev.note.strip(),
+                category="用户纠偏",
+                auto_inject=True,
+                sync_to_memory=False,
+            )
         return ev.model_dump(mode="json")
 
     def recall_memories(
@@ -938,6 +1034,8 @@ class HuiQiaoService:
         qa_items: list[dict[str, str]] | None = None,
         spec_md: str | None = None,
         plan_md: str | None = None,
+        session_id: str | None = None,
+        follow_context: bool = True,
     ) -> dict[str, Any]:
         if qa_items is not None or spec_md is not None or plan_md is not None:
             self.sfdp.build_spec_workshop(
@@ -948,12 +1046,95 @@ class HuiQiaoService:
                 custom_plan_md=plan_md,
                 freeze=True,
             )
+        ctx_pack = self.hub.prepare_continuous_context(
+            goal,
+            session_id=session_id,
+            follow_context=follow_context,
+        )
+        extra_guard = ctx_pack["guardrail_block"]
+        if ctx_pack["attached_prev_artifact"]:
+            extra_guard = f"{ctx_pack['augmented_goal']}\n\n{extra_guard}".strip()
         out = self.sfdp.build_and_converge(
             task_id,
             goal=goal,
             infer_fn=self._codeact_infer_fn,
+            context_messages=ctx_pack["context_messages"],
+            extra_guardrails=extra_guard,
         )
-        return self.get_run(out["run_id"])
+        run_data = self.get_run(out["run_id"])
+        self.hub.record_turn_completion(
+            session_id=session_id,
+            run_id=out["run_id"],
+            raw_goal=goal,
+            summary=str(run_data.get("summary") or ""),
+            artifacts=run_data.get("artifacts") or [],
+            spec_id=(run_data.get("spec") or {}).get("id"),
+        )
+        return run_data
+
+    # --- 三大持久中枢（Skill 规划管理库 · 经验防坑库 · 不断档上下文跟踪）服务入口 ---
+    def get_hub_overview(self) -> dict[str, Any]:
+        return {
+            "skill_hub": self.hub.get_skill_hub_overview(),
+            "experiences": self.hub.list_experiences(),
+            "experience_markdown_path": str(self.hub.experience_md_path),
+            "context": self.hub.list_sessions(),
+        }
+
+    def add_skill_plan(
+        self,
+        *,
+        title: str,
+        goal: str,
+        category: str = "自定义规划",
+        priority: str = "P1",
+        triggers: list[str] | None = None,
+    ) -> dict[str, Any]:
+        return self.hub.add_skill_plan(
+            title=title,
+            goal=goal,
+            category=category,
+            priority=priority,
+            triggers=triggers,
+        )
+
+    def incubate_skill_plan(self, plan_id: str, *, auto_activate: bool = True) -> dict[str, Any]:
+        res = self.hub.incubate_skill_plan(plan_id, auto_activate=auto_activate)
+        if auto_activate and res["draft"].get("status") == "ACTIVE":
+            self._refresh_router()
+        return res
+
+    def delete_skill_plan(self, plan_id: str) -> dict[str, Any]:
+        return self.hub.delete_skill_plan(plan_id)
+
+    def add_experience_rule(
+        self,
+        *,
+        title: str,
+        pitfall: str,
+        rule: str,
+        category: str = "研发防坑",
+        auto_inject: bool = True,
+    ) -> dict[str, Any]:
+        return self.hub.add_experience(
+            title=title,
+            pitfall=pitfall,
+            rule=rule,
+            category=category,
+            auto_inject=auto_inject,
+        )
+
+    def toggle_experience_rule(self, exp_id: str, auto_inject: bool) -> dict[str, Any]:
+        return self.hub.toggle_experience(exp_id, auto_inject)
+
+    def delete_experience_rule(self, exp_id: str) -> dict[str, Any]:
+        return self.hub.delete_experience(exp_id)
+
+    def create_context_session(self, title: str = "新项目连续会话") -> dict[str, Any]:
+        return self.hub.create_session(title)
+
+    def switch_context_session(self, session_id: str) -> dict[str, Any]:
+        return self.hub.switch_session(session_id)
 
     def list_recent_runs(self, limit: int = 20) -> list[dict[str, Any]]:
         return self.store.list_runs(limit=limit)

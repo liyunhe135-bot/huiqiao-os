@@ -26,6 +26,10 @@ dist/
 workspace/runs/
 workspace/.huiqiao/
 workspace/MEMORY.md
+workspace/ACTIVE_CONTEXT.md
+workspace/EXPERIENCE_VAULT.md
+workspace/SKILL_PLAN_HUB.md
+workspace/exports/
 workspace/memory/
 
 # Secrets & OS junk

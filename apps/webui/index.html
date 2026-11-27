@@ -270,6 +270,49 @@
       line-height: 1.65;
     }
 
+    /* 不断档上下文状态条 & 三大持久中枢面板 */
+    .continuity-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 9px;
+      padding: 7px 10px;
+      border: 1px solid rgba(255, 214, 10, 0.28);
+      background: rgba(255, 214, 10, 0.055);
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .trinity-hub-panel {
+      display: none;
+      margin-bottom: 14px;
+      border: 1px solid var(--cyber-yellow);
+      background: linear-gradient(180deg, rgba(255, 214, 10, 0.08) 0%, rgba(8, 11, 16, 0.97) 100%);
+      box-shadow: 0 0 26px rgba(255, 214, 10, 0.16);
+      position: relative;
+      z-index: 4;
+    }
+
+    .hub-card {
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      border: 1px solid var(--border-subtle);
+      background: rgba(12, 15, 22, 0.88);
+      border-left: 3px solid var(--bodhi-gold);
+    }
+
+    .hub-form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px dashed var(--border-gold);
+      background: rgba(255, 214, 10, 0.03);
+    }
+
     .status-dot {
       display: inline-block;
       width: 9px;
@@ -787,8 +830,11 @@
       <select id="modelSelect" class="model-select" title="切换本机已安装的 Ollama 显卡模型" onchange="switchLocalModel(this.value)">
         <option value="">探活本机模型中...</option>
       </select>
-      <button class="btn btn-secondary" id="termModeBtn" style="padding:4px 10px;font-size:11.5px;" title="在『大众科技白话』与『禅意觉悟术语（附白话悬停解释）』之间一键切换" onclick="toggleTerminologyMode()">🌐 语境: 大众白话</button>
-      <button class="btn btn-secondary" style="padding:4px 10px;font-size:11.5px;" onclick="toggleGuide()">📖 怎么用</button>
+      <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" title="统一管理：规划池技能 -> 候选种子 -> 双闸门测试上线 -> 便携包导出" onclick="openTrinityHub('skills')">🧩 技能规划库 <span id="hdrSkillHubCnt" class="tag" style="margin-left:3px;">0</span></button>
+      <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" title="管理防偏移与编码踩坑铁律，每次推理自动挂载防复发" onclick="openTrinityHub('experiences')">📚 经验防坑库 <span id="hdrExpCnt" class="tag" style="margin-left:3px;">0</span></button>
+      <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" title="查看当前不断档项目会话链、滚动摘要与绑定代码产物" onclick="openTrinityHub('context')">🔗 上下文链</button>
+      <button class="btn btn-secondary" id="termModeBtn" style="padding:4px 9px;font-size:11.5px;" title="在『大众科技白话』与『禅意觉悟术语（附白话悬停解释）』之间一键切换" onclick="toggleTerminologyMode()">🌐 语境: 大众白话</button>
+      <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" onclick="toggleGuide()">📖 怎么用</button>
     </div>
   </header>
 
@@ -829,7 +875,23 @@
           </button>
         </div>
 
-        <textarea id="taskInput" rows="3" placeholder="输入您的想法或需求（例如：构建一个背诵俱舍诵疏本地打卡小程序 / 提炼本地文档摘要 / 统计 CSV 表格）..."></textarea>
+        <!-- 不断档会话与经验自动护航状态条 -->
+        <div class="continuity-bar" id="continuityBar">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="color:var(--cyber-yellow);font-weight:700;">🔗 当前连续会话:</span>
+            <select id="sessionSelect" class="model-select" style="max-width:210px;" onchange="switchActiveSession(this.value)"></select>
+            <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="createNewSession()" title="开启一个全新项目的独立上下文链">＋ 新会话</button>
+            <label class="cyber-check" title="开启后自动继承当前会话历史轮次、上一版代码产物(index.html)与经验防坑护栏，多轮迭代绝不断档">
+              <input type="checkbox" id="followContextCheck" checked /> 跟着改·不断档
+            </label>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span id="continuityStatsBadge" class="tag tag-ok">初始化跟进链...</span>
+            <span id="pinnedArtifactBadge" style="display:none;font-size:11.5px;"></span>
+          </div>
+        </div>
+
+        <textarea id="taskInput" rows="3" placeholder="输入您的想法，或直接输入『继续加上背诵计时器和按品搜索』跟进修改当前绑定应用..."></textarea>
 
         <div class="input-row">
           <input type="text" id="attachInput" placeholder="可选：本地文件或目录路径（多个以分号 ; 分隔）" />
@@ -867,6 +929,19 @@
           <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
             <button class="btn" style="padding:5px 12px;font-size:12px;" onclick="fillCodingDemo(true)">📐 体验「先设计规格 → 再构建运行」：《俱舍诵疏》打卡小程序</button>
           </div>
+        </div>
+
+        <!-- 三大持久中枢面板：Skill 规划管理库 · 经验防坑库 · 不断档上下文跟踪链 -->
+        <div class="trinity-hub-panel" id="trinityHubPanel">
+          <div class="delivery-tab-bar" style="justify-content:space-between;align-items:center;padding-right:10px;">
+            <div style="display:flex;flex-wrap:wrap;">
+              <button class="d-tab active" data-htab="skills" onclick="switchHubTab('skills')">🧩 Skill 规划管理库</button>
+              <button class="d-tab" data-htab="experiences" onclick="switchHubTab('experiences')">📚 经验防坑库（自动护航）</button>
+              <button class="d-tab" data-htab="context" onclick="switchHubTab('context')">🔗 不断档会话时间轴</button>
+            </div>
+            <button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;margin:4px 0;" onclick="closeTrinityHub()">收起面板</button>
+          </div>
+          <div class="delivery-tab-body" id="trinityHubBody"></div>
         </div>
 
         <!-- PRD v3.0 铸泽 SFDP 规格先行交互设计工坊 -->
@@ -1276,7 +1351,9 @@
             goal: currentSfdpGoal,
             qa_items: collectSfdpQa(),
             spec_md: document.getElementById("sfdpSpecMd").value,
-            plan_md: document.getElementById("sfdpPlanMd").value
+            plan_md: document.getElementById("sfdpPlanMd").value,
+            session_id: document.getElementById("sessionSelect").value || null,
+            follow_context: document.getElementById("followContextCheck").checked
           })
         });
         const runData = await res.json();
@@ -1284,6 +1361,7 @@
         selectMode("execute");
         renderRunDetail(runData);
         await loadRuns();
+        await loadHubOverview();
       } finally {
         btn.disabled = false;
         btn.textContent = "🔨 确认规格 · 启动沙箱构建与五件套交付";
@@ -1352,6 +1430,274 @@
       await loadRuns();
       await loadMemories();
       await loadSkillSeeds();
+      await loadHubOverview();
+    }
+
+    let hubSnapshot = null;
+    let currentHubTab = "skills";
+
+    async function loadHubOverview() {
+      try {
+        hubSnapshot = await (await fetch("/api/hub/overview")).json();
+        const sh = hubSnapshot.skill_hub || {};
+        const counts = sh.counts || {};
+        const exps = hubSnapshot.experiences || [];
+        const ctx = hubSnapshot.context || {};
+        const activeExps = exps.filter(e => e.auto_inject);
+
+        document.getElementById("hdrSkillHubCnt").textContent = `${counts.planned || 0}规划/${counts.active || 0}启用`;
+        document.getElementById("hdrExpCnt").textContent = `${activeExps.length}`;
+
+        const sel = document.getElementById("sessionSelect");
+        sel.innerHTML = "";
+        let activeSes = null;
+        (ctx.sessions || []).forEach(s => {
+          const opt = document.createElement("option");
+          opt.value = s.session_id;
+          opt.textContent = `${s.title} (${(s.turns || []).length}轮)`;
+          if (s.session_id === ctx.active_session_id) {
+            opt.selected = true;
+            activeSes = s;
+          }
+          sel.appendChild(opt);
+        });
+        if (!activeSes && (ctx.sessions || []).length) activeSes = ctx.sessions[0];
+
+        const turnsCnt = activeSes ? (activeSes.turns || []).length : 0;
+        document.getElementById("continuityStatsBadge").textContent =
+          `已连续跟进 ${turnsCnt} 轮 · 自动挂载 ${activeExps.length} 条防坑经验`;
+
+        const pinEl = document.getElementById("pinnedArtifactBadge");
+        if (activeSes && activeSes.pinned_preview_url) {
+          pinEl.style.display = "inline-flex";
+          pinEl.style.gap = "6px";
+          pinEl.style.alignItems = "center";
+          pinEl.innerHTML = `<span class="tag">📎 已绑定应用产物</span>
+            <a href="${escapeHtml(activeSes.pinned_preview_url)}" target="_blank" style="color:var(--cyber-yellow);text-decoration:underline;">打开当前版</a>
+            <button class="btn btn-secondary" style="padding:2px 7px;font-size:11px;" onclick="prefillFollowUp()">✍️ 基于此继续追加功能</button>`;
+        } else {
+          pinEl.style.display = "none";
+        }
+
+        if (document.getElementById("trinityHubPanel").style.display === "block") {
+          renderTrinityHubTab();
+        }
+      } catch (e) {}
+    }
+
+    function openTrinityHub(tabKey) {
+      currentHubTab = tabKey || "skills";
+      document.getElementById("trinityHubPanel").style.display = "block";
+      switchHubTab(currentHubTab);
+    }
+
+    function closeTrinityHub() {
+      document.getElementById("trinityHubPanel").style.display = "none";
+    }
+
+    function switchHubTab(tabKey) {
+      currentHubTab = tabKey;
+      document.querySelectorAll("[data-htab]").forEach(b => b.classList.toggle("active", b.dataset.htab === tabKey));
+      renderTrinityHubTab();
+    }
+
+    function renderTrinityHubTab() {
+      if (!hubSnapshot) return;
+      const body = document.getElementById("trinityHubBody");
+
+      if (currentHubTab === "skills") {
+        const sh = hubSnapshot.skill_hub || {};
+        const plans = sh.plans || [];
+        const active = sh.active_skills || [];
+        body.innerHTML = `
+          <div style="margin-bottom:8px;color:var(--text-muted);font-size:12px;">
+            全生命周期闭环：<strong>规划蓝图 (${plans.length})</strong> → <strong>M11 沙箱+C00 双闸门孵化</strong> → <strong>已启用技能 (${active.length})</strong>（同步镜像：<code>workspace/SKILL_PLAN_HUB.md</code>）
+          </div>
+          <div class="hub-form-grid">
+            <input type="text" id="newPlanTitle" placeholder="新技能名称（如：读书笔记卡片提炼器）" />
+            <input type="text" id="newPlanTriggers" placeholder="触发词（逗号分隔，如：读书卡片,提炼金句）" />
+            <input type="text" id="newPlanGoal" placeholder="规划目标与输出格式要求..." />
+            <button class="btn" onclick="addSkillPlanFromUi()">＋ 加入技能规划库</button>
+          </div>
+          <h3 style="color:var(--cyber-yellow);font-size:13px;margin:8px 0 6px;">📋 规划蓝图池（点击『一键孵化上线』自动合成代码并过双闸门单测）</h3>
+          ${plans.map(p => `
+            <div class="hub-card" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:220px;">
+                <div><span class="tag">${escapeHtml(p.priority || "P1")}</span> <strong style="color:var(--text-main);">${escapeHtml(p.title)}</strong> <span class="${statusTagClass(p.status)}">${escapeHtml(p.status)}</span></div>
+                <div style="font-size:11.5px;color:var(--text-muted);margin-top:3px;">触发词：<code>${escapeHtml((p.triggers || []).join(", "))}</code> ｜ 目标：${escapeHtml(p.goal)}</div>
+              </div>
+              <div style="display:flex;gap:6px;">
+                ${p.status === "ACTIVE"
+                  ? `<span class="tag tag-ok">已上线 (${escapeHtml(p.linked_skill_id || "")})</span>`
+                  : `<button class="btn" style="padding:4px 10px;font-size:11.5px;" onclick="incubatePlanFromUi('${escapeHtml(p.plan_id)}')">⚡ 一键孵化并双闸门上线</button>`}
+                <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="deleteSkillPlanFromUi('${escapeHtml(p.plan_id)}')">删除</button>
+              </div>
+            </div>
+          `).join("")}
+          <h3 style="color:var(--cyber-yellow);font-size:13px;margin:12px 0 6px;">✦ 已启用活跃技能（支持一键导出离线便携包 .hqskill.zip）</h3>
+          ${active.map(s => `
+            <div class="hub-card" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+              <div>
+                <strong style="color:var(--text-main);">${escapeHtml(s.name)}</strong> <code style="font-size:11px;color:var(--bodhi-gold);">${escapeHtml(s.skill_id)}@${escapeHtml(s.version)}</code>
+                <div style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(s.description)}</div>
+              </div>
+              <button class="btn btn-secondary" style="padding:4px 9px;font-size:11px;" onclick="exportActiveSkill('${escapeHtml(s.skill_id)}')">📦 导出便携包</button>
+            </div>
+          `).join("")}
+        `;
+      } else if (currentHubTab === "experiences") {
+        const exps = hubSnapshot.experiences || [];
+        body.innerHTML = `
+          <div style="margin-bottom:8px;color:var(--text-muted);font-size:12px;">
+            开启挂载的铁律会在每次设计规格、沙箱编码与问答前<strong>自动精炼注入推理护栏</strong>，绝不重犯同类错误（同步镜像：<code>workspace/EXPERIENCE_VAULT.md</code>）。
+          </div>
+          <div class="hub-form-grid">
+            <input type="text" id="newExpTitle" placeholder="经验标题（如：按钮必须带中文提示）" />
+            <input type="text" id="newExpCat" placeholder="分类（如：UI交互 / 本地编码 / 防偏移）" value="研发防坑" />
+            <input type="text" id="newExpPitfall" placeholder="踩坑现象（选填）" />
+            <input type="text" id="newExpRule" placeholder="防复发铁律（必填，推理时自动挂载遵守）" />
+            <button class="btn" onclick="addExperienceFromUi()">＋ 存入经验防坑库</button>
+          </div>
+          ${exps.map(e => `
+            <div class="hub-card" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:240px;">
+                <div><span class="tag">${escapeHtml(e.category)}</span> <strong style="color:var(--text-main);">${escapeHtml(e.title)}</strong> <span class="tag tag-ok">累计护航 ${e.hit_count || 0} 次</span></div>
+                <div style="font-size:12px;color:var(--cyber-yellow);margin-top:3px;">铁律：${escapeHtml(e.rule)}</div>
+                <div style="font-size:11px;color:var(--text-muted);">原坑：${escapeHtml(e.pitfall || "—")}</div>
+              </div>
+              <div style="display:flex;gap:6px;">
+                <button class="btn btn-secondary" style="padding:4px 9px;font-size:11px;" onclick="toggleExperienceFromUi('${escapeHtml(e.exp_id)}', ${!e.auto_inject})">${e.auto_inject ? "✅ 自动挂载中" : "⏸️ 已暂停"}</button>
+                <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="deleteExperienceFromUi('${escapeHtml(e.exp_id)}')">删除</button>
+              </div>
+            </div>
+          `).join("")}
+        `;
+      } else {
+        const ctx = hubSnapshot.context || {};
+        const activeSes = (ctx.sessions || []).find(s => s.session_id === ctx.active_session_id) || (ctx.sessions || [])[0];
+        const turns = activeSes ? (activeSes.turns || []) : [];
+        body.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+            <div style="font-size:12px;color:var(--text-muted);">
+              当前活跃会话：<strong style="color:var(--cyber-yellow);">${escapeHtml(activeSes ? activeSes.title : "无")}</strong> ｜ 实时真相源：<code>workspace/ACTIVE_CONTEXT.md</code>（超 6 轮自动浓缩摘要，长聊不爆显存、跨重启不断档）
+            </div>
+            <button class="btn" style="padding:4px 11px;font-size:11.5px;" onclick="prefillFollowUp()">✍️ 基于当前会话继续追加功能</button>
+          </div>
+          ${activeSes && activeSes.rolling_summary ? `<div class="hub-card"><strong>📜 早期轮次自动浓缩摘要：</strong><pre style="margin-top:4px;">${escapeHtml(activeSes.rolling_summary)}</pre></div>` : ""}
+          ${turns.length ? turns.map(t => `
+            <div class="hub-card">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <strong style="color:var(--cyber-yellow);">第 ${t.turn_no} 轮 · <code>${escapeHtml(t.run_id)}</code></strong>
+                ${t.preview_url ? `<a href="${escapeHtml(t.preview_url)}" target="_blank" style="color:var(--emerald);font-size:12px;">🚀 打开该轮生成应用</a>` : ""}
+              </div>
+              <div style="margin-top:4px;color:var(--text-main);"><strong>诉求：</strong>${escapeHtml(t.goal)}</div>
+              <div style="margin-top:3px;font-size:12px;color:var(--text-muted);"><strong>交付摘要：</strong>${escapeHtml(t.summary)}</div>
+            </div>
+          `).join("") : "<div class='hub-card'>当前新会话尚无历史轮次，在上方输入任意需求运行后将自动建立连续跟踪链。</div>"}
+        `;
+      }
+    }
+
+    async function addSkillPlanFromUi() {
+      const title = document.getElementById("newPlanTitle").value.trim();
+      const goal = document.getElementById("newPlanGoal").value.trim();
+      const trigRaw = document.getElementById("newPlanTriggers").value.trim();
+      if (!title || !goal) { alert("请填写新技能名称与规划目标！"); return; }
+      const triggers = trigRaw ? trigRaw.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [];
+      await fetch("/api/hub/skills/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, goal, triggers, priority: "P0" })
+      });
+      await loadHubOverview();
+    }
+
+    async function incubatePlanFromUi(planId) {
+      const res = await fetch(`/api/hub/skills/plan/${planId}/incubate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auto_activate: true })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await loadSkills();
+        await loadHubOverview();
+        alert(`✦ 孵化上线成功！已通过 M08 沙箱单测与 C00 宪章双闸门，新技能 [${data.draft.skill_id}] 已入驻左侧快捷技能库！`);
+      } else {
+        alert(data.detail || "孵化失败");
+      }
+    }
+
+    async function deleteSkillPlanFromUi(planId) {
+      await fetch(`/api/hub/skills/plan/${planId}`, { method: "DELETE" });
+      await loadHubOverview();
+    }
+
+    async function exportActiveSkill(skillId) {
+      const outPath = `workspace/exports/${skillId}.hqskill.zip`;
+      const res = await fetch(`/api/skills/${skillId}/export`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ output_zip: outPath })
+      });
+      const data = await res.json();
+      if (res.ok) alert(`📦 已导出离线便携技能包：\n${data.zip_path}`);
+      else alert(data.detail || "导出失败");
+    }
+
+    async function addExperienceFromUi() {
+      const title = document.getElementById("newExpTitle").value.trim();
+      const category = document.getElementById("newExpCat").value.trim() || "研发防坑";
+      const pitfall = document.getElementById("newExpPitfall").value.trim();
+      const rule = document.getElementById("newExpRule").value.trim();
+      if (!title || !rule) { alert("请填写经验标题与防复发铁律！"); return; }
+      await fetch("/api/hub/experiences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, category, pitfall, rule, auto_inject: true })
+      });
+      await loadMemories();
+      await loadHubOverview();
+    }
+
+    async function toggleExperienceFromUi(expId, nextState) {
+      await fetch(`/api/hub/experiences/${expId}/toggle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auto_inject: nextState })
+      });
+      await loadHubOverview();
+    }
+
+    async function deleteExperienceFromUi(expId) {
+      await fetch(`/api/hub/experiences/${expId}`, { method: "DELETE" });
+      await loadHubOverview();
+    }
+
+    async function createNewSession() {
+      const title = prompt("请输入新项目连续会话名称：", "新项目设计构建会话");
+      if (title === null) return;
+      await fetch("/api/hub/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title.trim() || "新项目连续会话" })
+      });
+      await loadHubOverview();
+    }
+
+    async function switchActiveSession(sessionId) {
+      if (!sessionId) return;
+      await fetch(`/api/hub/sessions/${sessionId}/switch`, { method: "POST" });
+      await loadHubOverview();
+    }
+
+    function prefillFollowUp() {
+      closeTrinityHub();
+      selectMode("execute");
+      document.getElementById("followContextCheck").checked = true;
+      const inp = document.getElementById("taskInput");
+      inp.value = "继续优化当前应用：保留全部原有功能与数据，新增按关键词快速筛选和 15 分钟专注背诵倒计时器。";
+      inp.focus();
     }
 
     async function loadSkills() {
@@ -1472,13 +1818,18 @@
       const attachments = attachRaw ? attachRaw.split(";").map(s => s.trim()).filter(Boolean) : [];
       const applyChanges = document.getElementById("applyCheck").checked;
 
+      const followCtx = document.getElementById("followContextCheck").checked;
+      const activeSid = document.getElementById("sessionSelect").value || null;
+      const hasPinnedApp = document.getElementById("pinnedArtifactBadge").style.display !== "none";
+      const isFollowUpAppEdit = followCtx && hasPinnedApp && !selectedSkillId && /(继续|加上|增加|再加|修改|改成|优化|完善|补充|调整|修复)/.test(text);
+
       // 智能联动：若用户在『Plan · 规格设计工坊』模式下输入构建/编码类需求且无文件附件，直接打开 SFDP 规格工坊对齐设计！
       const isCodingBuild = !selectedSkillId && /(构建|开发|编写|生成一个|写一个|制作).*(小程序|网页|应用|页面|计算器|打卡|脚本|工具|html|python)/i.test(text);
       if (currentMode === "plan" && isCodingBuild && attachments.length === 0) {
         await openSfdpStudio();
         return;
       }
-      if (currentMode === "ask" && (applyChanges || isCodingBuild)) {
+      if (currentMode === "ask" && (applyChanges || isCodingBuild || isFollowUpAppEdit)) {
         selectMode("execute");
       }
 
@@ -1488,12 +1839,16 @@
         attachments,
         allowed_paths: attachments,
         skill_id: selectedSkillId,
-        metadata: { apply_changes: applyChanges }
+        metadata: {
+          apply_changes: applyChanges,
+          session_id: activeSid,
+          follow_context: followCtx
+        }
       };
 
       const btn = document.getElementById("submitBtn");
       btn.disabled = true;
-      btn.textContent = "⚡ 觉悟推演中...";
+      btn.textContent = "⚡ 正在执行并同步上下文...";
       try {
         const res = await fetch("/api/tasks", {
           method: "POST",
@@ -1503,9 +1858,10 @@
         const data = await res.json();
         renderRunDetail(data);
         await loadRuns();
+        await loadHubOverview();
       } finally {
         btn.disabled = false;
-        btn.textContent = "⚡ 启动觉悟推演";
+        btn.textContent = (typeof termMode !== "undefined" && termMode === "zen") ? "⚡ 启动推演" : "⚡ 直接构建 / 运行";
       }
     }
 
@@ -1556,9 +1912,12 @@
       if (res.ok) {
         noteEl.value = "";
         document.getElementById("feedbackStatus").textContent =
-          `✦ 已铭刻回向 [${data.kind}] (${data.elapsed_ms}ms)` + (data.created_seed_id ? ` · 菩提种子 ${data.created_seed_id}` : "");
+          `✦ 已记录反馈 [${data.kind}] (${data.elapsed_ms}ms)` +
+          (data.kind === "correct" ? " · 已自动同步至『经验防坑库』永久护航" : "") +
+          (data.created_seed_id ? ` · 新技能候选 ${data.created_seed_id}` : "");
         await loadMemories();
         await loadSkillSeeds();
+        await loadHubOverview();
         await inspectRun(currentRunId);
       } else {
         document.getElementById("feedbackStatus").textContent = data.detail || "反馈提交失败";

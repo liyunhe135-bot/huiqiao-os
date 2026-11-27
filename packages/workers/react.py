@@ -78,6 +78,11 @@ class ReActWorker:
         )
         messages: list[dict[str, str]] = [
             {"role": "system", "content": system_prompt},
+            *[
+                {"role": str(m["role"]), "content": str(m.get("content", ""))}
+                for m in (step.context_messages or [])
+                if isinstance(m, dict) and m.get("role") in ("user", "assistant")
+            ],
             {
                 "role": "user",
                 "content": (

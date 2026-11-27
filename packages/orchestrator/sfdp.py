@@ -385,6 +385,8 @@ class ChuZeSfdpEngine:
         goal: str,
         infer_fn: InferFn | None = None,
         max_converge_rounds: int = 2,
+        context_messages: list[dict[str, str]] | None = None,
+        extra_guardrails: str = "",
     ) -> dict[str, Any]:
         """阶段 ③④⑤：冻结规格 -> M08 沙箱构建 -> 只读 AC 逐条收敛（未过只追加新任务） -> 铸造交付包五件套。"""
         spec = self.store.get_latest_spec(task_id)
@@ -464,6 +466,8 @@ class ChuZeSfdpEngine:
                 f"请严格依据以下冻结的《需求规格 spec.md》与《技术方案 plan.md》完成构建：\n\n"
                 f"{spec['spec_md']}\n\n{spec['plan_md']}"
             )
+            if extra_guardrails.strip():
+                full_goal = f"{full_goal}\n\n{extra_guardrails.strip()}"
             step_out = worker.run(
                 StepInput(
                     run_id=run_id,
@@ -471,6 +475,7 @@ class ChuZeSfdpEngine:
                     goal=full_goal,
                     work_mode=WorkMode.EXECUTE,
                     interaction_mode=InteractionMode.COPILOT_EXECUTE,
+                    context_messages=list(context_messages or []),
                     steering_hint=gap_hint or None,
                 )
             )

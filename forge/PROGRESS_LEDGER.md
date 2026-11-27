@@ -16,8 +16,8 @@
 | `M06` | 柔硬结合路由与语义共生执行内核 | 管编码：`Gemini 4 Carbon (Medium)` | `done` | 100% | ✅ | `packages/router/` + `packages/workers/`（20题评测通过/0误塞CodeAct，全库 97/97） |
 | `M07` | 统一网关、CLI/WebUI 与 5 创世种子技能 | 管编码：`Gemini 4 Carbon (Medium)` | `done` | 100% | ✅ | **Alpha MVP 达成**（FastAPI/WS+CLI+零CDN离线WebUI+5创世Skill，全库 105/105） |
 | `M08` | 分级本地安全沙箱 | 管大脑：`Claude Opus 5.5 / Gemini 4 Neon` | `done` | 100% | ✅ | `packages/sandbox/`（T1纯计算AST插桩 / T2 Windows Job+POSIX rlimit+PEP578审计钩子 / T3硬化容器Fail-Closed + 16项红队全绿，全库 127/127） |
-| `M09` | CodeAct、上下文四件套与亲和 Subagent | 管大脑：`Gemini 4 Neon (Extra High)` | `next` | — | ⬜ | Phase 2 里程碑块：完成后达 **Beta** 里程碑 |
-| `M10` | 分层本地记忆引擎与 1 秒反馈闭环 | 管编码：`Gemini 4 Carbon / Claude Sonnet 5.5` | `pending` | — | ⬜ | — |
+| `M09` | CodeAct、上下文四件套与亲和 Subagent | 管大脑：`Gemini 4 Neon (Extra High)` | `done` | 100% | ✅ | **Phase 2 Beta 里程碑达成（`v0.2.0-beta`）**：`context_engine.py` + `codeact.py` + `subagent.py` + 网关接入，全库 138/138 |
+| `M10` | 分层本地记忆引擎与 1 秒反馈闭环 | 管编码：`Gemini 4 Carbon / Claude Sonnet 5.5` | `next` | — | ⬜ | Phase 3 起点：File-First 记忆 + SQLite FTS5/双时态 + 1 秒 4 键反馈 |
 | `M11` | 双闸门防坍塌自演化引擎与普惠导出 | 管大脑：`Gemini 4 Neon / Claude Opus 5.5` | `pending` | — | ⬜ | 完成后达 RC 里程碑 |
 | `INT-4` | 五维整体测试、离线打包与正式上线 | 管编码 + 管电脑 + 大脑抽检 | `pending` | — | ⬜ | `v1.0.0` 发布 |
 
@@ -25,14 +25,14 @@
 
 ## 二、最新会话无缝交接快照（供下一次新会话直接接棒）
 
-- **更新时间**：2026-11-27 12:45
+- **更新时间**：2026-11-27 12:55
 - **已完成**：
-  1. `M00`–`M07`（Phase 1 Alpha MVP `v0.1.0-alpha`）全部绿灯并公开备份；
-  2. **`M08`（`B07` 分级本地安全沙箱：`packages/sandbox/` — T1 轻量 AST 插桩防死循环/内存炸弹与可选 WASM、T2 OS 原生受限子进程 + Windows Job Object / POSIX rlimit + 不可移除 PEP 578 C 级审计钩子、T3 硬化无网 Docker 容器适配器 Fail-Closed、以及热插拔 `SandboxManager`）完整落盘**；
-  3. **全仓库 `127 / 127` 项单测（含 `M08` 16 项红队越权/断网/符号链接/路径穿越/进程派生/内存/输出/写配额对抗测试 100% 拦截遏制）全部绿灯**，开源隐私卫生扫描 `HYGIENE_100_CLEAN`！
-- **单写者锁状态**：`forge/.active_writer.lock` 持续开启，严禁其他智能体并发修改本目录。
-- **下一块待施工**：**`M09`（`B05` CodeAct 执行内核、上下文四件套 [清理 / 双触发压缩 / 摘要化 / 宪章重注] 与逻辑隔离/物理显存亲和 Subagent → Phase 2 Beta 里程碑）**
+  1. `M00`–`M08` 全部通过并公开备份；
+  2. **`M09`（`B05` 上下文四件套 `context_engine.py`［清理 / 双触发压缩 / 摘要化 / C00 强重注 + KV 前缀锁］、`CodeActWorker` 联动 `M08` 沙箱自愈闭环与 Evidence Gate / 3 轮同错止损、以及逻辑隔离 + `M01` 物理显存亲和 `AffinitySubagentPool` + `HuiQiaoService` Beta 网关集成）完整落盘**；
+  3. **全仓库 `138 / 138` 项单测与红队/Beta 端到端闭环 100% 绿灯**，正式达成 **`v0.2.0-beta`（Phase 2 Beta 里程碑）**！
+- **单写者锁状态**：`forge/.active_writer.lock` 持续开启，严禁其他工具（如 WorkBuddy）并发写入本目录。
+- **下一块待施工**：**`M10`（`B08` File-First 分层本地记忆引擎：`workspace/MEMORY.md` + `workspace/memory/YYYY-MM-DD.md` 每日日志 + SQLite WAL/FTS5 混合双时态检索与可解释遗忘/编辑 + 1 秒 4 键反馈闭环［赞/踩/纠偏/存为技能种子］）**
 - **推荐切换模型**：
-  - 优先：**`Gemini 4 Neon (Extra High)`**（当前大脑模型即可无缝续接！`M09` 涉及把 `M08` 沙箱接入 `CodeActWorker` 闭环、上下文压缩重注不丢 `C00` 与显存亲和子代理调度，正是大脑岗核心职责）
-- **下一会话极简开场指令**（执行 `python forge/scripts/forge_guard.py brief M09` 也可自动生成）：
-  > 请激活 `huiqiao-forge-os` 技能，开始施工汇桥 OS 积木 `M09`（CodeAct、上下文四件套与亲和 Subagent → Beta 里程碑）。仅读取 `forge/BRICK_CONTEXT_CARD.md`、`forge/PROGRESS_LEDGER.md`、`packages/sandbox/manager.py` 和 `packages/workers/react.py`，先输出模块接口与验收清单（<100 行），落盘并跑通 `forge_guard.py test`。
+  - 优先：**`Gemini 4 Carbon (Medium)`** 或 **`Claude Sonnet 5.5`**（管编码主力岗，省大脑额度且擅长工程实现 SQLite FTS5 索引 + Markdown 同步 + API/CLI/WebUI 4 键反馈挂接）
+- **下一会话极简开场指令**（执行 `python forge/scripts/forge_guard.py brief M10` 也可自动生成）：
+  > 请激活 `huiqiao-forge-os` 技能，开始施工汇桥 OS 积木 `M10`（B08 File-First 分层本地记忆引擎与 1 秒 4 键反馈闭环）。仅读取 `forge/BRICK_CONTEXT_CARD.md`、`forge/PROGRESS_LEDGER.md`、`packages/core/interfaces.py` 和 `packages/gateway/api.py`，先输出模块接口与验收清单（<100 行），落盘并跑通 `forge_guard.py test`。

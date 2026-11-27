@@ -11,6 +11,7 @@ from packages.core.contracts import (
     ExecutionChannel,
     InteractionMode,
     RouteDecision,
+    SandboxTier,
     SkillManifest,
     StepInput,
     TaskConstraints,
@@ -31,7 +32,8 @@ from packages.orchestrator import (
     TaskNode,
 )
 from packages.router import HybridRouter
-from packages.workers import ReActWorker, SemanticCoCreatorWorker
+from packages.sandbox import SandboxManager
+from packages.workers import CodeActWorker, ReActWorker, SemanticCoCreatorWorker
 
 InferFn = Callable[[list[dict[str, str]]], str]
 
@@ -47,6 +49,8 @@ class HuiQiaoService:
         skills_root: pathlib.Path | str | None = None,
         semantic_infer_fn: InferFn | None = None,
         react_infer_fn: InferFn | None = None,
+        codeact_infer_fn: InferFn | None = None,
+        sandbox: SandboxManager | None = None,
         capability_profile: CapabilityProfile | None = None,
     ) -> None:
         self.repo_root = (
@@ -89,6 +93,11 @@ class HuiQiaoService:
         )
         self._semantic_infer_fn = semantic_infer_fn
         self._react_infer_fn = react_infer_fn
+        self._codeact_infer_fn = codeact_infer_fn
+        self.sandbox = sandbox or SandboxManager(
+            offline_only=self.guard.offline_only,
+            governance_guard=self.guard,
+        )
         self.capability_profile = capability_profile
 
     def healthcheck(self) -> dict[str, Any]:
@@ -99,11 +108,12 @@ class HuiQiaoService:
             "governance": self.guard.healthcheck(),
             "orchestrator_wal": self.engine.healthcheck(),
             "semantic_worker": self.semantic_worker.healthcheck(),
+            "sandbox": self.sandbox.healthcheck(),
             "genesis_skills_ready": len(active_skills) >= 5,
         }
         return {
             "ok": all(checks.values()),
-            "version": "0.1.0-alpha",
+            "version": "0.2.0-beta",
             "offline_only": self.guard.offline_only,
             "constitution_version": self.constitution.version,
             "constitution_sha256": self.constitution.sha256[:16],
@@ -297,6 +307,50 @@ class HuiQiaoService:
                         "model_notes": f"[跨通道协同 -> genesis-doc-digest] {res.get('model_notes', '')}",
                         "artifact_paths": [str(saved)],
                     }
+
+            if (
+                decision.channel == ExecutionChannel.L2C_CODEACT
+                and self._codeact_infer_fn is not None
+            ):
+                tier = (
+                    decision.sandbox_tier
+                    if decision.sandbox_tier != SandboxTier.NONE
+                    else SandboxTier.T2_OS_RESTRICTED
+                )
+                ws_dir = (
+                    pathlib.Path(str(envelope.constraints.allowed_paths[0])).resolve()
+                    if envelope.constraints.allowed_paths
+                    else (self.store.artifacts_root / ctx.run_id).resolve()
+                )
+                ws_dir.mkdir(parents=True, exist_ok=True)
+                ca_worker = CodeActWorker(
+                    infer_fn=self._codeact_infer_fn,
+                    sandbox=self.sandbox,
+                    sandbox_tier=tier,
+                    workspace_dir=ws_dir,
+                    guard=self.guard,
+                    constitution=self.constitution,
+                    verifier_code=str(meta.get("verifier_code", "")).strip() or None,
+                )
+                hint = "；".join(ctx.steering_hints) if ctx.steering_hints else None
+                out = ca_worker.run(
+                    StepInput(
+                        run_id=ctx.run_id,
+                        task_id=ctx.task_id,
+                        goal=envelope.raw_input or "",
+                        work_mode=envelope.constraints.work_mode,
+                        interaction_mode=decision.interaction_mode,
+                        effective_ctx_budget=decision.capability_check.effective_ctx_budget,
+                        steering_hint=hint,
+                    )
+                )
+                if not out.success:
+                    raise RuntimeError(out.error or out.summary or "CodeAct 执行失败")
+                return {
+                    "summary": out.summary,
+                    "model_notes": out.model_notes,
+                    "artifact_paths": list(out.artifacts),
+                }
 
             if self._react_infer_fn is not None:
                 worker = ReActWorker(

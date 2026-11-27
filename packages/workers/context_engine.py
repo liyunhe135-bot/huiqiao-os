@@ -147,13 +147,36 @@ class ContextManager:
             return f"MESSAGE_COUNT_TRIGGER:{len(non_system)}/{self.policy.max_raw_messages}"
         return None
 
+    @staticmethod
+    def _extract_high_signal_clauses(text: str, *, max_chars: int = 360) -> str:
+        """高纯度无损信号提炼：只剥离空白与客套噪音，优先完整保留编号条款、「必保原文」、路径与异常根因行。"""
+        lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+        if not lines:
+            return ""
+        prioritized: list[str] = []
+        for ln in lines:
+            if (
+                "「" in ln
+                or "『" in ln
+                or ln[:3].lstrip().startswith(("1.", "2.", "3.", "4.", "a)", "b)", "c)", "d)", "- ", "* "))
+                or any(k in ln for k in ("Error", "Exception", "AssertionError", "localStorage", ".html", ".py", "不得改动", "必须"))
+            ):
+                prioritized.append(ln)
+        if not prioritized:
+            prioritized = lines[:3]
+        elif lines[0] not in prioritized:
+            prioritized.insert(0, lines[0])
+        joined = " ； ".join(prioritized)
+        return joined if len(joined) <= max_chars else (joined[: max_chars - 3] + "...")
+
     def _deterministic_summarize(self, middle: list[dict[str, str]]) -> str:
-        """第 3 件套（零模型确定性摘要器）：结构化提炼目标、动作、报错、产物与改向线索。"""
+        """第 3 件套（零模型高纯度确定性摘要器）：结构化锁死不可变原文契约、分项要求、动作、报错根因与产物线索。"""
         goals: list[str] = []
         actions: list[str] = []
         errors: list[str] = []
         artifacts: list[str] = []
         steerings: list[str] = []
+        invariants: list[str] = []
         prev_summaries: list[str] = []
 
         for msg in middle:
@@ -162,40 +185,48 @@ class ContextManager:
             if not text:
                 continue
             if COMPACT_SUMMARY_MARKER in text:
-                # 继承既有滚动摘要的关键条目（去重防无限滚雪球）
                 for line in text.splitlines():
                     line_s = line.strip()
-                    if line_s.startswith("- ") and len(prev_summaries) < 6:
+                    if line_s.startswith("- ") and len(prev_summaries) < 8:
                         prev_summaries.append(line_s)
                 continue
 
-            first_line = text.splitlines()[0].strip()[:140]
+            dense_digest = self._extract_high_signal_clauses(text, max_chars=360)
+            if "「" in text or "不得改动" in text or "逐字" in text:
+                for ln in text.splitlines():
+                    if ("「" in ln or "不得改动" in ln or "逐字" in ln) and ln.strip() not in invariants:
+                        invariants.append(ln.strip()[:260])
+
             if "[中途改向]" in text or "steering" in text.lower():
-                steerings.append(first_line)
-            if role == "user" and not text.startswith("[Observation") and not text.startswith("[Sandbox") and not text.startswith("[Pruned"):
-                if len(goals) < 3:
-                    goals.append(first_line)
-            if any(k in text for k in ("Error", "Traceback", "FAIL", "BLOCKED", "失败", "拦截")):
+                steerings.append(dense_digest)
+            if role == "user" and not text.startswith(("[Observation", "[Sandbox", "[Pruned")):
+                if len(goals) < 4:
+                    goals.append(dense_digest)
+            if any(k in text for k in ("Error", "Traceback", "AssertionError", "FAIL", "BLOCKED", "失败", "拦截")):
+                err_lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+                tail_err = err_lines[-1][:200] if err_lines else dense_digest
                 if len(errors) < 4:
-                    errors.append(first_line)
-            if any(k in text for k in ("artifacts", "产出", ".json", ".md", ".py", ".csv")):
+                    errors.append(tail_err)
+            if any(k in text for k in ("artifacts", "产出", ".json", ".md", ".py", ".csv", ".html")):
                 if len(artifacts) < 4:
-                    artifacts.append(first_line)
+                    artifacts.append(dense_digest[:200])
             if role == "assistant" and len(actions) < 5:
-                actions.append(first_line)
+                actions.append(text.splitlines()[0].strip()[:160])
 
         lines: list[str] = [COMPACT_SUMMARY_MARKER]
         if prev_summaries:
             lines.append("【前序压缩要点】")
-            lines.extend(prev_summaries[:4])
+            lines.extend(prev_summaries[:5])
+        if invariants:
+            lines.append(f"- 不可变契约与必保原文(严禁丢失): {' || '.join(invariants[:4])}")
         if goals:
-            lines.append(f"- 核心目标: {' | '.join(goals)}")
+            lines.append(f"- 核心目标与分项要求: {' | '.join(goals)}")
         if steerings:
-            lines.append(f"- 人类改向约束: {' | '.join(steerings[-2:])}")
+            lines.append(f"- 人类改向与经验约束: {' | '.join(steerings[-2:])}")
         if actions:
             lines.append(f"- 已执行步骤({len(middle)}条历史): {' -> '.join(actions[-3:])}")
         if errors:
-            lines.append(f"- 历史错误/拦截教训: {' ; '.join(errors[-3:])}")
+            lines.append(f"- 历史错误/拦截根因: {' ; '.join(errors[-3:])}")
         if artifacts:
             lines.append(f"- 相关产物线索: {' ; '.join(artifacts[-3:])}")
 

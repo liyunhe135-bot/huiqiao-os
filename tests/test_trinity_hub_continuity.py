@@ -144,3 +144,85 @@ def test_hub_rest_api_endpoints(tmp_path: pathlib.Path) -> None:
     s_sw = client.post(f"/api/hub/sessions/{sid}/switch")
     assert s_sw.status_code == 200
     assert s_sw.json()["title"] == "第二测试项目"
+
+
+def test_lossless_high_density_condensation_and_behavioral_gates(tmp_path: pathlib.Path) -> None:
+    from packages.hub.manager import condense_code_losslessly, extract_immutable_invariants
+    from packages.workers.codeact import CodeActWorker
+
+    # 1. 验证超长 HTML (>18KB) 无损脱水：绝不切掉底部 <script> 与 localStorage 契约！
+    huge_css = "/* comment */ .box {   padding: 10px;   margin: 10px; }\n" * 450
+    tail_script = "<script>function saveProgress(){ localStorage.setItem('jushe_v2','ok'); }</script>"
+    big_html = f"<!doctype html><html><head><style>{huge_css}</style></head><body><div id='app'></div>{tail_script}</body></html>"
+    assert len(big_html) > 18000
+    condensed, contract_hdr = condense_code_losslessly(big_html, ".html", soft_limit=16000)
+    assert "function saveProgress()" in condensed
+    assert "jushe_v2" in contract_hdr
+    assert "saveProgress" in contract_hdr
+
+    # 2. 验证必保逐字原文与分项条款无损提取
+    invs = extract_immutable_invariants(
+        "开发背诵器：1. 内置归敬颂：「诸一切种诸冥灭，拔众生出生死泥」不得改动；2. 支持遮字默背。"
+    )
+    assert any("诸一切种诸冥灭，拔众生出生死泥" in x for x in invs)
+    assert any("2. 支持遮字默背" in x for x in invs)
+
+    # 3. 验证 CodeAct 沙箱拒绝『悬空 onclick 未定义函数』伪造交付，并在第 2 轮自愈通过！
+    calls = {"n": 0}
+
+    def self_healing_model(messages: list[dict[str, str]]) -> str:
+        calls["n"] += 1
+        last = messages[-1]["content"]
+        if calls["n"] == 1:
+            # 故意制造常见低质伪造：按钮绑定了 checkInNow()，但 <script> 里写错了函数名！
+            return "```html\n<!doctype html><html><body><button onclick=\"checkInNow()\">打卡</button><script>function typoCheckIn(){}</script></body></html>\n```"
+        if "未定义的函数" in last:
+            return "```html\n<!doctype html><html><body><button onclick=\"checkInNow()\">打卡</button><script>function checkInNow(){ localStorage.setItem('ok','1'); }</script></body></html>\n```"
+        return '{"action": "finish", "summary": "已通过行为级闭环自愈交付"}'
+
+    worker = CodeActWorker(
+        infer_fn=self_healing_model,
+        workspace_dir=tmp_path / "ca_ws",
+    )
+    from packages.core.contracts import StepInput, WorkMode
+
+    out = worker.run(StepInput(run_id="r_qa", task_id="t_qa", goal="构建打卡器", work_mode=WorkMode.EXECUTE))
+    assert out.success is True
+    assert calls["n"] == 2  # 第1轮被沙箱断言拦截 -> 第2轮修复通过并零冗余直达交付！
+
+    # 4. 验证 SFDP 必保逐字原文 AC-04 拦截漏字并在第 2 轮自动收敛补齐！
+    svc = HuiQiaoService(
+        db_path=tmp_path / "hq2.db",
+        skills_root=tmp_path / "ws_skills2",
+        memory_dir=tmp_path / "mem_ws2",
+        auto_ollama=False,
+    )
+    goal_with_quote = "构建俱舍小程序，内置原文：「诸一切种诸冥灭，拔众生出生死泥」不得改动"
+    clar = svc.sfdp_clarify_and_draft(goal_with_quote)
+    tid = clar["task_id"]
+    ac_ids = [a["ac_id"] for a in clar["spec"]["ac_list"]]
+    assert "AC-04" in ac_ids
+
+    round_tracker = {"r": 0}
+
+    def sfdp_model(messages: list[dict[str, str]]) -> str:
+        last = messages[-1]["content"]
+        if "HTML_APP_VERIFIED" in last or "exit_code=0" in last:
+            return '{"action": "finish", "summary": "本轮构建完成"}'
+        round_tracker["r"] += 1
+        if round_tracker["r"] == 1:
+            # 第 1 轮故意漏掉必保原文 -> 触发 SFDP AC-04 只读收敛重跑！
+            return "```html\n<!doctype html><html><body><button onclick=\"go()\">背诵</button><script>function go(){ localStorage.setItem('a', localStorage.getItem('a')||'1'); }</script></body></html>\n```"
+        return "```html\n<!doctype html><html><body><p>诸一切种诸冥灭，拔众生出生死泥</p><button onclick=\"go()\">背诵</button><script>function go(){ localStorage.setItem('a', localStorage.getItem('a')||'1'); }</script></body></html>\n```"
+
+    svc._codeact_infer_fn = sfdp_model
+    built = svc.sfdp_build_from_spec(tid, goal=goal_with_quote)
+    assert built["status"] == "COMPLETED"
+    assert round_tracker["r"] == 2
+    assert "AC-04" in built["delivery"]["self_check"]
+
+    # 5. 验证预置技能规划『经典背诵间隔复习规划师』一键孵化产出真实艾宾浩斯排期表！
+    inc = svc.incubate_skill_plan("plan_spaced_recite", auto_activate=True)
+    skill_id = inc["draft"]["skill_id"]
+    res_recite = svc.submit_task("第一品界品颂；第二品根品颂", skill_id=skill_id)
+    assert "+1天" in res_recite["summary"] and "+15天" in res_recite["summary"]

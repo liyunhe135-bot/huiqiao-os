@@ -75,19 +75,32 @@ def _parse_codeact_response(raw_text: str) -> dict[str, Any]:
         if code:
             return {"action": "run_code", "code": code}
 
-    # 3. 柔性兼容：本地模型直接输出 ```html ... ``` 单页应用代码时，自动封装为安全沙箱落盘与非空校验脚本
+    # 3. 柔性兼容：本地模型直接输出 ```html ... ``` 单页应用代码时，封装为沙箱深度契约校验（零外部CDN + 事件函数闭环校验）
     html_match = _HTML_FENCE_RE.search(cleaned)
     if html_match:
         html_src = html_match.group(1).strip()
         if html_src:
             auto_py = (
-                "import pathlib\n"
+                "import pathlib, re\n"
                 f"_html = {html_src!r}\n"
+                "assert len(_html) >= 60, 'HTML 内容过短'\n"
+                "_cdn = re.findall(r'<(?:script|link)\\b[^>]*(?:src|href)\\s*=\\s*[\"\\']https?://[^\"\\']+', _html, flags=re.I)\n"
+                "assert not _cdn, f'违反100%离线规范，检测到外部CDN引用: {_cdn}'\n"
+                "_scripts = '\\n'.join(re.findall(r'<script[^>]*>([\\s\\S]*?)</script>', _html, flags=re.I))\n"
+                "_called = set(re.findall(r'\\bon(?:click|change|input|submit)\\s*=\\s*[\"\\']\\s*([a-zA-Z_$][\\w$]*)\\s*\\(', _html))\n"
+                "_builtins = {'localStorage','sessionStorage','alert','confirm','prompt','console','document','window','location','history','Math','JSON','parseInt','parseFloat','setTimeout','clearTimeout','setInterval','clearInterval','event','this','return','if'}\n"
+                "_missing_fns = [fn for fn in sorted(_called - _builtins) if not re.search(rf'(?:function\\s+{re.escape(fn)}\\b|(?:const|let|var|window\\.)\\s*{re.escape(fn)}\\s*=)', _scripts)]\n"
+                "assert not _missing_fns, f'HTML 事件属性调用了 <script> 中未定义的函数: {_missing_fns}，请补齐函数实现或修正拼写！'\n"
                 "pathlib.Path('index.html').write_text(_html, encoding='utf-8')\n"
-                "assert len(_html) >= 40, 'HTML 内容过短'\n"
-                "print('HTML_APP_READY:', len(_html), 'bytes -> index.html')\n"
+                "print('HTML_APP_VERIFIED:', len(_html), 'bytes, bound_fns=', sorted(_called - _builtins))\n"
             )
-            return {"action": "run_code", "code": auto_py}
+            prose = _HTML_FENCE_RE.sub("", cleaned).strip()
+            return {
+                "action": "run_code",
+                "code": auto_py,
+                "_direct_html_app": True,
+                "_prose_summary": prose,
+            }
 
     raise ValueError("未检测到合法的 JSON 动作对象或 ```python``` / ```html``` 代码块")
 
@@ -517,6 +530,33 @@ class CodeActWorker:
                 verified = True
                 if self.guard is not None:
                     self.guard.evidence.grant(step.run_id, "test_passed")
+
+                # 真省流量提速：单页 HTML 应用一旦通过沙箱『零外部CDN + 事件函数闭环 + 客观断言』全部核验，直接交付，省去无意义的二次寒暄推理！
+                if cmd.get("_direct_html_app"):
+                    elapsed_ms = int((time.perf_counter() - t0) * 1000)
+                    prose_sum = str(cmd.get("_prose_summary") or "").strip()
+                    ver_line = res.stdout.strip().splitlines()[-1] if res.stdout.strip() else "index.html 沙箱验证通过"
+                    final_sum = prose_sum if len(prose_sum) >= 12 else f"已完成本地离线交互应用构建并通过沙箱契约核验（`{ver_line}`）。"
+                    return StepOutput(
+                        run_id=step.run_id,
+                        task_id=step.task_id,
+                        step_id=step.step_id,
+                        brick_name="codeact_worker",
+                        success=True,
+                        summary=final_sum,
+                        artifacts=list(dict.fromkeys(collected_artifacts)),
+                        model_notes=f"单轮闭环验真直达（零冗余复述轮次）· {ver_line}",
+                        tokens_used=total_tokens_est,
+                        elapsed_ms=elapsed_ms,
+                        metadata={
+                            "turns": turn,
+                            "sandbox_runs": sandbox_runs,
+                            "verified": True,
+                            "compactions": self.context_manager.telemetry.compaction_count,
+                            "constitution_intact": self.context_manager.verify_constitution_intact(messages),
+                            "trace": trace,
+                        },
+                    )
 
                 messages.append({"role": "assistant", "content": json.dumps(cmd, ensure_ascii=False)})
                 messages.append(

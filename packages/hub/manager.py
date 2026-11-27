@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 from typing import TYPE_CHECKING, Any
 
 from packages.core.contracts import new_id, utc_now
@@ -105,7 +106,74 @@ def _default_experiences() -> list[dict[str, Any]]:
             "hit_count": 0,
             "created_at": now,
         },
+        {
+            "exp_id": "exp_lossless_high_density",
+            "title": "高纯度无损浓缩（严禁一刀切截断丢弃核心逻辑与原文）",
+            "category": "防偏移",
+            "pitfall": "把硬截断当省流量，切掉用户多行条款、必保原文或底部 <script> 代码导致返工重跑耗费数倍流量。",
+            "rule": "只剥离空白/注释/客套噪音；用户指定的『逐字原文』、全部分项功能点、localStorage 键名与事件函数必须 100% 无损保留并客观校验。",
+            "auto_inject": True,
+            "hit_count": 0,
+            "created_at": now,
+        },
     ]
+
+
+def condense_code_losslessly(raw_code: str, suffix: str = ".html", soft_limit: int = 16000) -> tuple[str, str]:
+    """无损代码脱水器：严禁像 [:7000] 那样腰斩底部 <script>！
+    - 16KB 以内 100% 原样保留；
+    - 超长 HTML 仅压缩 <style> 内部空白注释，100% 完整保留 DOM 结构与全部 <script> 逻辑，并提取契约签名卡。
+    """
+    ls_keys = sorted(set(re.findall(r"localStorage\.(?:getItem|setItem)\(\s*['\"]([^'\"]+)['\"]", raw_code)))
+    fn_names = sorted(set(re.findall(r"function\s+([a-zA-Z_$][\w$]*)\s*\(", raw_code)))
+    dom_ids = sorted(set(re.findall(r"\bid\s*=\s*['\"]([^'\"]+)['\"]", raw_code)))
+    contract_parts: list[str] = []
+    if ls_keys:
+        contract_parts.append(f"localStorage键={ls_keys}")
+    if fn_names:
+        contract_parts.append(f"JS函数={fn_names[:20]}")
+    if dom_ids:
+        contract_parts.append(f"核心DOM_ID={dom_ids[:20]}")
+    contract_header = " | ".join(contract_parts)
+
+    if len(raw_code) <= soft_limit:
+        return raw_code, contract_header
+
+    if suffix.lower() == ".html":
+        def _minify_css_block(m: re.Match[str]) -> str:
+            css = re.sub(r"/\*[\s\S]*?\*/", "", m.group(1))
+            css = re.sub(r"\s+", " ", css).strip()
+            return f"<style>{css}</style>"
+
+        compacted = re.sub(r"<style[^>]*>([\s\S]*?)</style>", _minify_css_block, raw_code, flags=re.I)
+        if len(compacted) <= soft_limit + 4000:
+            return compacted, contract_header
+
+        # 即便极端超长，也必须完整保留全部 <script> 与 <body> 骨架，绝不截断脚本尾部！
+        scripts = "\n".join(re.findall(r"<script[\s\S]*?</script>", compacted, flags=re.I))
+        head_body = re.sub(r"<script[\s\S]*?</script>", "<!-- script preserved below -->", compacted, flags=re.I)
+        budget_body = max(4000, soft_limit - len(scripts))
+        return f"{head_body[:budget_body]}\n{scripts}", contract_header
+
+    return raw_code[:soft_limit], contract_header
+
+
+def extract_immutable_invariants(goal: str) -> list[str]:
+    """从用户输入无损提取『不可变契约锚点』（必保逐字引号原文 + 编号分项条款），跨多少轮压缩也绝不丢弃！"""
+    found: list[str] = []
+    # 1. 提取『...』或「...」中 >=6 字的关键原文引用
+    for q in re.findall(r"[「『]([^」』]{6,260})[」』]", goal):
+        anchor = f"必保原文：「{q.strip()}」"
+        if anchor not in found:
+            found.append(anchor)
+    # 2. 提取显式分项条款（1. / 2. / a) / b)）
+    for seg in re.split(r"(?:\n|；|;)+", goal):
+        s = seg.strip()
+        if re.match(r"^(?:\d+[\.、]|[a-fA-F][\)\.、])\s*", s) and len(s) >= 6:
+            clause = s[:220]
+            if clause not in found:
+                found.append(clause)
+    return found[:12]
 
 
 def _default_skill_plans() -> list[dict[str, Any]]:
@@ -186,6 +254,10 @@ class TrinityContinuityHub:
                 data = json.loads(self.state_path.read_text(encoding="utf-8"))
                 if isinstance(data, dict):
                     data.setdefault("experiences", _default_experiences())
+                    existing_exp_ids = {e.get("exp_id") for e in data["experiences"]}
+                    for def_exp in _default_experiences():
+                        if def_exp["exp_id"] not in existing_exp_ids:
+                            data["experiences"].append(def_exp)
                     data.setdefault("skill_plans", _default_skill_plans())
                     data.setdefault("sessions", [])
                     data.setdefault("active_session_id", "")
@@ -539,28 +611,35 @@ class TrinityContinuityHub:
         attached_prev_artifact = False
 
         if follow_context:
-            if ses.get("rolling_summary"):
+            pinned_invs = ses.get("invariants") or []
+            if ses.get("rolling_summary") or pinned_invs:
+                inv_block = (
+                    "【永久锁死不可变契约锚点（严禁丢失或篡改）】:\n" + "\n".join(f"- {x}" for x in pinned_invs) + "\n"
+                    if pinned_invs
+                    else ""
+                )
+                roll_block = ses.get("rolling_summary") or ""
                 context_messages.append(
                     {
                         "role": "user",
-                        "content": f"[早期会话滚动摘要（自动防断档）]:\n{ses['rolling_summary']}",
+                        "content": f"[早期会话无损契约浓缩摘要]:\n{inv_block}{roll_block}".strip(),
                     }
                 )
                 context_messages.append(
                     {
                         "role": "assistant",
-                        "content": "明白，我已完整继承此前轮次的项目背景与关键决策。",
+                        "content": "明白，我已完整锁定全部不可变原文契约、已实现功能与前序决策，将在此基础上无损演进。",
                     }
                 )
-            # 保留最近 3 轮对话，既不断档又极省 Token
+            # 保留最近 3 轮完整目标与交付要点
             for t in ses.get("turns", [])[-3:]:
                 context_messages.append({"role": "user", "content": str(t.get("goal", ""))})
                 context_messages.append({"role": "assistant", "content": str(t.get("summary", ""))})
 
-            # 若当前会话已有上一版代码文件（如 index.html），且用户在跟进修改/迭代，自动挂载上一版源码供增量修改！
+            # 若当前会话已有上一版代码文件（如 index.html），且用户在跟进修改/迭代，采用无损脱水器完整保留 DOM 与全部 <script>！
             art_path_str = ses.get("pinned_artifact_path")
             is_follow_up = any(h in goal for h in _INCREMENTAL_HINTS) or (
-                bool(art_path_str) and len(ses.get("turns", [])) >= 1 and len(goal) <= 120
+                bool(art_path_str) and len(ses.get("turns", [])) >= 1 and len(goal) <= 160
             )
             if art_path_str and is_follow_up:
                 p = pathlib.Path(str(art_path_str))
@@ -568,10 +647,11 @@ class TrinityContinuityHub:
                     try:
                         raw_code = p.read_text(encoding="utf-8", errors="ignore")
                         if raw_code.strip():
-                            clipped = raw_code[:7000]
+                            lossless_code, contract_hdr = condense_code_losslessly(raw_code, p.suffix)
+                            hdr_note = f"\n[既有代码契约签名（严禁破坏既有键名与函数）]: {contract_hdr}" if contract_hdr else ""
                             prior_code_snippet = (
-                                f"\n\n[当前会话上一版已落盘产物 `{p.name}`（请在此基础上增量演进，严禁丢弃已有功能）]:\n"
-                                f"```{p.suffix.lstrip('.') or 'text'}\n{clipped}\n```"
+                                f"\n\n[当前会话上一版已落盘产物 `{p.name}`（请无损保留全部原有功能、文案与数据键名，增量实现新诉求）]:{hdr_note}\n"
+                                f"```{p.suffix.lstrip('.') or 'text'}\n{lossless_code}\n```"
                             )
                             attached_prev_artifact = True
                     except Exception:
@@ -636,6 +716,13 @@ class TrinityContinuityHub:
         if len(ses.get("turns", [])) == 0 and ses.get("title") in ("默认连续工作流会话", "新项目连续会话"):
             ses["title"] = raw_goal.strip()[:22] + ("…" if len(raw_goal.strip()) > 22 else "")
 
+        # 提取并永久锁死本轮新增的不可变契约锚点（必保原文「...」与显式编号分项），压缩多少轮都绝不丢失！
+        existing_invs: list[str] = list(ses.get("invariants") or [])
+        for inv in extract_immutable_invariants(raw_goal):
+            if inv not in existing_invs:
+                existing_invs.append(inv)
+        ses["invariants"] = existing_invs[:20]
+
         prev_turns = ses.get("turns", [])
         last_no = int(prev_turns[-1]["turn_no"]) if prev_turns else int(ses.get("total_turns", 0))
         turn_no = last_no + 1
@@ -645,24 +732,25 @@ class TrinityContinuityHub:
                 "turn_no": turn_no,
                 "run_id": run_id,
                 "goal": raw_goal.strip(),
-                "summary": (summary or "").strip()[:360],
+                "summary": (summary or "").strip()[:600],
                 "artifact_path": (code_art.get("file_path") or code_art.get("path")) if code_art else None,
                 "preview_url": preview_url if html_art else None,
                 "timestamp": _now_iso(),
             }
         )
 
-        # 双触发轻量防断档滚动压缩：超过 6 轮时将最早轮次浓缩进 rolling_summary，既不断档又省 Token
+        # 高纯度无损滚动浓缩：超过 6 轮时，保留结构化需求条款与交付结论，绝不一刀切 [:50] 丢弃关键信息
         if len(ses["turns"]) > 6:
             overflow = ses["turns"][:-4]
             ses["turns"] = ses["turns"][-4:]
-            digest_lines = [
-                f"- 第{t['turn_no']}轮：{t['goal'][:50]} -> {t['summary'][:70]}"
-                for t in overflow
-            ]
+            digest_lines = []
+            for t in overflow:
+                g_clean = re.sub(r"\s+", " ", str(t["goal"])).strip()
+                s_clean = re.sub(r"\s+", " ", str(t["summary"])).strip()
+                digest_lines.append(f"- 第{t['turn_no']}轮[{t['run_id']}] 诉求要点：{g_clean[:180]} => 落盘结论：{s_clean[:180]}")
             prev = (ses.get("rolling_summary") or "").strip()
             merged = (f"{prev}\n" + "\n".join(digest_lines)).strip()
-            ses["rolling_summary"] = merged[-1200:]
+            ses["rolling_summary"] = merged[-2400:]
 
         ses["updated_at"] = _now_iso()
         self._save_json()

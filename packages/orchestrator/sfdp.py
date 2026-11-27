@@ -82,32 +82,61 @@ class ChuZeSfdpEngine:
     def _is_web_app_goal(goal: str) -> bool:
         return bool(re.search(r"(小程序|网页|页面|前端|打卡|面板|工作台|计算器|看板|html|ui|界面)", goal, re.I))
 
+    @staticmethod
+    def _extract_verbatim_quotes(goal: str) -> list[str]:
+        """提取用户显式用『...』或「...」标出的关键原文（>=6字），用于生成逐字落盘 AC。"""
+        quotes: list[str] = []
+        for q in re.findall(r"[「『]([^」』]{6,260})[」』]", goal):
+            clean_q = q.strip()
+            if clean_q and clean_q not in quotes:
+                quotes.append(clean_q)
+        return quotes[:8]
+
+    @staticmethod
+    def _extract_feature_clauses(goal: str) -> list[str]:
+        """无损提取用户列举的分项功能需求（严禁 goal[:36] 硬截断丢条款）。"""
+        clauses: list[str] = []
+        for seg in re.split(r"(?:\n|；|;)+", goal):
+            s = seg.strip()
+            if re.match(r"^(?:\d+[\.、]|[a-fA-F][\)\.、]|[-*]\s)", s) and len(s) >= 4:
+                clauses.append(s)
+        if not clauses:
+            clauses = [s.strip() for s in re.split(r"[。！？\n]+", goal) if len(s.strip()) >= 4][:6]
+        return clauses[:10]
+
     def generate_clarify_questions(self, goal: str, *, task_id: str | None = None) -> dict[str, Any]:
-        """阶段 ① 澄清门：针对用户原始想法生成 <=4 个带智能默认值的关键设计澄清项（零阻碍秒拍板）。"""
+        """阶段 ① 澄清门：无损解析全部需求子项与必保原文，生成 <=4 个高针对性澄清项。"""
         tid = task_id or new_id("tsk")
         is_app = self._is_web_app_goal(goal)
+        clauses = self._extract_feature_clauses(goal)
+        quotes = self._extract_verbatim_quotes(goal)
+        clause_summary = " ； ".join(clauses) if clauses else goal.strip()
 
         if is_app:
             questions = [
                 {
                     "id": f"qa_{tid}_1",
-                    "question": "核心交付形态是什么？",
-                    "answer": "单文件 100% 离线可运行的本地 HTML 交互小程序（零外部 CDN，双击或浏览器即开）",
+                    "question": "核心交付形态与离线要求？",
+                    "answer": "单文件 100% 离线可运行的本地 HTML 交互应用（零外部 CDN，事件函数与 DOM 100% 闭环校验）",
                 },
                 {
                     "id": f"qa_{tid}_2",
-                    "question": "核心功能模块与数据结构包含哪些？",
-                    "answer": f"围绕「{goal[:36]}」提供主列表/章节进度追踪、一键交互打卡/操作反馈与汇总统计看板",
+                    "question": "已提取的全部核心功能条款（可补充或修改）？",
+                    "answer": clause_summary,
                 },
                 {
                     "id": f"qa_{tid}_3",
-                    "question": "本地数据如何保存与备份？",
-                    "answer": "使用浏览器本地 localStorage 自动持久化，关闭重开不丢失，并支持重置/导出",
+                    "question": "本地数据持久化与逐字原文约束？",
+                    "answer": (
+                        f"使用 localStorage 自动持久化状态；必保逐字原文共 {len(quotes)} 处（严禁删改：{' / '.join(q[:24] + '…' if len(q) > 24 else q for q in quotes)}）"
+                        if quotes
+                        else "使用浏览器本地 localStorage 自动持久化进度与记录，刷新重开零丢失"
+                    ),
                 },
                 {
                     "id": f"qa_{tid}_4",
-                    "question": "界面视觉与交互风格偏好？",
-                    "answer": "黑曜底色 + 赛博金/菩提黄高对比禅意科技风，字号清晰、按钮响应直观",
+                    "question": "界面视觉与公众易用性风格？",
+                    "answer": "黑曜底色 + 赛博金高对比禅意科技风，按钮默认使用清晰中文白话说明，手机与桌面自适应",
                 },
             ]
         else:
@@ -119,8 +148,8 @@ class ChuZeSfdpEngine:
                 },
                 {
                     "id": f"qa_{tid}_2",
-                    "question": "输入输出边界与异常处理要求？",
-                    "answer": "纯标准库零外网依赖，对空输入或异常格式给出清晰中文提示",
+                    "question": "已提取的核心需求边界（可补充）？",
+                    "answer": clause_summary,
                 },
                 {
                     "id": f"qa_{tid}_3",
@@ -160,12 +189,13 @@ class ChuZeSfdpEngine:
         qa_md = "\n".join(f"- **{item['question']}**：{item['answer']}" for item in saved_qa) or "- 采用默认离线标准规格"
 
         if is_app:
+            quotes = self._extract_verbatim_quotes(goal)
             ac_list = [
                 {
                     "ac_id": "AC-01",
-                    "title": "产出可独立运行的单页文件 index.html",
-                    "given_when_then": "给定沙箱工作区，当构建完成时，则存在非空 index.html (>200 字节) 且包含完整 HTML/JS 交互结构",
-                    "negative_case": "负例：禁止空壳文本或仅输出代码片段说明而不落盘文件",
+                    "title": "产出闭合且事件函数零悬空的 index.html",
+                    "given_when_then": "给定沙箱工作区，当构建完成时，存在非空闭合 index.html 且全部 onclick/onchange 事件函数均在 <script> 中真实定义",
+                    "negative_case": "负例：禁止空壳文本、未闭合标签或按钮调用了未定义的 JS 函数（防功能性伪造）",
                     "check_kind": "html_file_valid",
                 },
                 {
@@ -177,12 +207,23 @@ class ChuZeSfdpEngine:
                 },
                 {
                     "ac_id": "AC-03",
-                    "title": "具备真实可点击交互与本地持久化状态",
-                    "given_when_then": "给定用户操作需求，当检查脚本逻辑时，则包含按钮事件处理与 localStorage 状态保存",
-                    "negative_case": "负例：禁止只有静态展示没有交互逻辑的死页面",
+                    "title": "具备真实可点击交互与 localStorage 读写闭环",
+                    "given_when_then": "给定用户操作需求，当检查脚本逻辑时，同时包含事件处理绑定与 localStorage 读写持久化",
+                    "negative_case": "负例：禁止只有静态展示没有状态读写逻辑的死页面",
                     "check_kind": "interactive_stateful",
                 },
             ]
+            if quotes:
+                ac_list.append(
+                    {
+                        "ac_id": "AC-04",
+                        "title": "用户指定关键原文 100% 逐字无损落盘",
+                        "given_when_then": f"给定用户指明的 {len(quotes)} 处必保引号原文，当扫描产物文本时，必须逐字精确匹配零篡改",
+                        "negative_case": "负例：擅自缩写、改写或遗漏用户指定的必保原文视为失败",
+                        "check_kind": "verbatim_quotes_intact",
+                        "required_quotes": quotes,
+                    }
+                )
         else:
             ac_list = [
                 {
@@ -266,9 +307,14 @@ class ChuZeSfdpEngine:
             "    if kind == 'html_file_valid':\n"
             "        p = pathlib.Path('index.html')\n"
             "        if p.is_file() and p.stat().st_size > 200:\n"
-            "            txt = p.read_text(encoding='utf-8', errors='ignore').lower()\n"
-            "            ok = '<html' in txt and '<script' in txt\n"
-            "            detail = f'index.html size={p.stat().st_size} bytes, has_script={\"<script\" in txt}'\n"
+            "            raw_txt = p.read_text(encoding='utf-8', errors='ignore')\n"
+            "            txt = raw_txt.lower()\n"
+            "            scripts = '\\n'.join(re.findall(r'<script[^>]*>([\\s\\S]*?)</script>', raw_txt, flags=re.I))\n"
+            "            called = set(re.findall(r'\\bon(?:click|change|input|submit)\\s*=\\s*[\"\\']\\s*([a-zA-Z_$][\\w$]*)\\s*\\(', raw_txt))\n"
+            "            builtins = {'localStorage','sessionStorage','alert','confirm','prompt','console','document','window','location','history','Math','JSON','parseInt','parseFloat','setTimeout','clearTimeout','setInterval','clearInterval','event','this','return','if'}\n"
+            "            missing_fns = [fn for fn in sorted(called - builtins) if not re.search(rf'(?:function\\s+{re.escape(fn)}\\b|(?:const|let|var|window\\.)\\s*{re.escape(fn)}\\s*=)', scripts)]\n"
+            "            ok = ('<html' in txt and '</html>' in txt and '<script' in txt and len(missing_fns) == 0)\n"
+            "            detail = f'size={p.stat().st_size}B, closed={\"</html>\" in txt}, missing_fns={missing_fns}'\n"
             "        else:\n"
             "            detail = 'index.html missing or <200 bytes'\n"
             "    elif kind == 'zero_external_cdn':\n"
@@ -281,9 +327,16 @@ class ChuZeSfdpEngine:
             "        p = pathlib.Path('index.html')\n"
             "        txt = p.read_text(encoding='utf-8', errors='ignore') if p.is_file() else ''\n"
             "        has_evt = any(k in txt for k in ('onclick', 'addEventListener', '<button'))\n"
-            "        has_store = 'localStorage' in txt\n"
+            "        has_store = ('localStorage.setItem' in txt or 'localStorage[' in txt) and ('localStorage.getItem' in txt or 'localStorage[' in txt or 'localStorage' in txt)\n"
             "        ok = p.is_file() and has_evt and has_store\n"
-            "        detail = f'interactive={has_evt}, localStorage={has_store}'\n"
+            "        detail = f'interactive={has_evt}, localStorage_rw={has_store}'\n"
+            "    elif kind == 'verbatim_quotes_intact':\n"
+            "        p = pathlib.Path('index.html')\n"
+            "        txt = p.read_text(encoding='utf-8', errors='ignore') if p.is_file() else ''\n"
+            "        req_q = ac.get('required_quotes') or []\n"
+            "        missing_q = [q[:24] for q in req_q if q not in txt]\n"
+            "        ok = p.is_file() and len(missing_q) == 0\n"
+            "        detail = f'checked_quotes={len(req_q)}, missing={missing_q}'\n"
             "    else:\n"
             "        non_empty = [f.name for f in files if f.stat().st_size > 0]\n"
             "        ok = len(non_empty) > 0\n"

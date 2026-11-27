@@ -62,8 +62,17 @@ slots:
         note: "M00 占位桩（已被 m08-tiered-sandbox 替代）"
 
   memory:
-    active: "mock-memory"
+    active: "m10-file-first-memory"
     bricks:
+      m10-file-first-memory:
+        brick_id: "b08-file-first-memory"
+        layer: "memory"
+        version: "1.0.0"
+        contract_version: "huiqiao/v1"
+        entrypoint: "packages.memory.store:FileFirstMemoryStore"
+        capabilities: ["file_first_markdown", "sqlite_fts5_hybrid", "bi_temporal", "human_editable_forget"]
+        enabled: false
+        note: "M10 File-First 分层本地记忆引擎（MEMORY.md + 每日日志 + SQLite FTS5/向量混合双时态）"
       mock-memory:
         brick_id: "b08-mock-memory"
         layer: "memory"
@@ -72,7 +81,7 @@ slots:
         entrypoint: "packages.core.registry:NullBrick"
         capabilities: ["healthcheck"]
         enabled: false
-        note: "M10 施工完成后替换为 FileFirstSqliteMemory"
+        note: "M00 占位桩（已被 m10-file-first-memory 替代）"
 
   governance:
     active: "m04-governance-guard"

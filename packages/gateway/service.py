@@ -23,6 +23,7 @@ from packages.core.contracts import (
 )
 from packages.gateway.skills_loader import SkillRegistry
 from packages.governance import GovernanceGuard
+from packages.memory import FeedbackKind, FeedbackLoopService, FileFirstMemoryStore
 from packages.orchestrator import (
     FlowContext,
     FlowPrimitive,
@@ -47,6 +48,7 @@ class HuiQiaoService:
         repo_root: pathlib.Path | str | None = None,
         db_path: pathlib.Path | str | None = None,
         skills_root: pathlib.Path | str | None = None,
+        memory_dir: pathlib.Path | str | None = None,
         semantic_infer_fn: InferFn | None = None,
         react_infer_fn: InferFn | None = None,
         codeact_infer_fn: InferFn | None = None,
@@ -98,6 +100,16 @@ class HuiQiaoService:
             offline_only=self.guard.offline_only,
             governance_guard=self.guard,
         )
+        resolved_mem_dir = (
+            pathlib.Path(memory_dir).resolve()
+            if memory_dir is not None
+            else (self.workspace_dir if db_path is None else resolved_db.parent.resolve())
+        )
+        self.memory = FileFirstMemoryStore(
+            resolved_mem_dir,
+            db_path=resolved_mem_dir / ".huiqiao" / "memory.db",
+        )
+        self.feedback = FeedbackLoopService(self.memory)
         self.capability_profile = capability_profile
 
     def healthcheck(self) -> dict[str, Any]:
@@ -109,6 +121,7 @@ class HuiQiaoService:
             "orchestrator_wal": self.engine.healthcheck(),
             "semantic_worker": self.semantic_worker.healthcheck(),
             "sandbox": self.sandbox.healthcheck(),
+            "memory": self.memory.healthcheck(),
             "genesis_skills_ready": len(active_skills) >= 5,
         }
         return {
@@ -244,7 +257,13 @@ class HuiQiaoService:
             )
 
             def _run_l2s(ctx: FlowContext) -> dict[str, Any]:
-                hint = "；".join(ctx.steering_hints) if ctx.steering_hints else None
+                recalled = self.memory.recall(envelope.raw_input or "", top_k=3)
+                mem_hint = ""
+                if recalled:
+                    mem_lines = "; ".join(r["content"] for r in recalled)
+                    mem_hint = f"[本地记忆偏好]: {mem_lines}"
+                parts = [p for p in ( *ctx.steering_hints, mem_hint ) if p]
+                hint = "；".join(parts) if parts else None
                 out = self.semantic_worker.run(
                     StepInput(
                         run_id=ctx.run_id,
@@ -263,9 +282,12 @@ class HuiQiaoService:
                     art_paths.append(str(tp))
                 saved = ctx.save_artifact("semantic_notes.md", out.summary)
                 art_paths.append(str(saved))
+                notes = out.model_notes
+                if recalled:
+                    notes = f"{notes} | 已结合 {len(recalled)} 条本地透明记忆".strip(" |")
                 return {
                     "summary": out.summary,
-                    "model_notes": out.model_notes,
+                    "model_notes": notes,
                     "artifact_paths": art_paths,
                 }
 
@@ -593,6 +615,7 @@ class HuiQiaoService:
             "flow_name": rec["flow_name"],
             "status": rec["status"],
             "step_count": rec["step_count"],
+            "raw_input": (state.get("_envelope") or {}).get("raw_input", ""),
             "summary": state.get("summary", ""),
             "model_notes": state.get("model_notes", ""),
             "diff_preview": state.get("diff_preview")
@@ -602,9 +625,103 @@ class HuiQiaoService:
             "error": rec.get("error"),
             "artifacts": artifacts,
             "events": events,
+            "feedbacks": self.feedback.list_feedback_events(run_id=run_id),
             "created_at": rec["created_at"],
             "updated_at": rec["updated_at"],
         }
+
+    # --- M10 分层记忆与 1 秒 4 键反馈服务入口 ---
+    def submit_feedback(
+        self,
+        run_id: str,
+        *,
+        kind: FeedbackKind | str,
+        note: str = "",
+        topic_key: str | None = None,
+        scope: str = "default",
+    ) -> dict[str, Any]:
+        run_snap = self.get_run(run_id)
+        ev = self.feedback.submit_feedback(
+            run_id=run_id,
+            kind=kind,
+            note=note,
+            topic_key=topic_key,
+            scope=scope,
+            run_snapshot=run_snap,
+        )
+        self.store.append_event(
+            run_id=run_id,
+            task_id=run_snap["task_id"],
+            event_type=f"human_feedback_{ev.kind.value}",
+            payload={
+                "feedback_id": ev.feedback_id,
+                "note": ev.note,
+                "created_memory_id": ev.created_memory_id,
+                "created_seed_id": ev.created_seed_id,
+            },
+        )
+        return ev.model_dump(mode="json")
+
+    def recall_memories(
+        self,
+        query: str = "",
+        *,
+        scope: str = "default",
+        top_k: int = 10,
+        include_history: bool = False,
+    ) -> list[dict[str, Any]]:
+        if not query.strip():
+            return self.memory.list_memories(
+                scope=scope,
+                include_inactive=include_history,
+                limit=top_k,
+            )
+        return self.memory.recall(
+            query,
+            scope=scope,
+            top_k=top_k,
+            include_history=include_history,
+        )
+
+    def add_memory(
+        self,
+        content: str,
+        *,
+        layer: str = "core",
+        topic_key: str | None = None,
+        tags: list[str] | None = None,
+        scope: str = "default",
+    ) -> dict[str, Any]:
+        mem_id = self.memory.commit(
+            {
+                "content": content,
+                "layer": layer,
+                "topic_key": topic_key,
+                "tags": tags or [],
+                "source": "human_edit",
+            },
+            scope=scope,
+        )
+        items = [m for m in self.memory.list_memories(scope=scope, include_inactive=True) if m["memory_id"] == mem_id]
+        return items[0] if items else {"memory_id": mem_id}
+
+    def edit_memory(
+        self,
+        memory_id: str,
+        *,
+        content: str,
+        topic_key: str | None = None,
+    ) -> dict[str, Any]:
+        return self.memory.update_memory(memory_id, content=content, topic_key=topic_key)
+
+    def forget_memory(self, memory_id: str) -> dict[str, Any]:
+        return self.memory.forget(memory_id)
+
+    def sync_memories_from_markdown(self) -> dict[str, int]:
+        return self.memory.sync_from_markdown()
+
+    def list_skill_seeds(self) -> list[dict[str, Any]]:
+        return [s.model_dump(mode="json") for s in self.feedback.list_skill_seeds()]
 
     def list_recent_runs(self, limit: int = 20) -> list[dict[str, Any]]:
         return self.store.list_runs(limit=limit)

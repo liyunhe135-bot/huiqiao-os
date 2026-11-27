@@ -48,7 +48,7 @@
 
 ---
 
-## 四、当前工程进度与快速验证（Phase 2 Beta 里程碑已达成 · M00–M09 138/138 全绿）
+## 四、当前工程进度与快速验证（Phase 3 进行中 · M00–M10 145/145 全绿）
 
 | 施工块 | 模块定位 | 状态 | 核心目录 |
 | :---: | :--- | :---: | :--- |
@@ -62,11 +62,12 @@
 | **`M07`** | 统一网关、CLI / 离线 WebUI 与 5 创世种子技能（**`v0.1.0-alpha` MVP**） | ✅ Done | `packages/gateway/`, `apps/`, `workspace/skills/` |
 | **`M08`** | 分级本地安全沙箱（T1 纯计算 / T2 OS 原生审计 / T3 硬化容器 + 16 项红队） | ✅ Done | `packages/sandbox/` |
 | **`M09`** | CodeAct 自愈内核、上下文四件套与亲和 Subagent（**`v0.2.0-beta` 里程碑**） | ✅ Done | `packages/workers/`, `packages/gateway/` |
-| **`M10`** | File-First 分层本地记忆引擎与 1 秒 4 键反馈闭环 | 🔜 Next | `packages/memory/` |
+| **`M10`** | File-First 分层本地记忆引擎与 1 秒 4 键反馈闭环 | ✅ Done | `packages/memory/`, `packages/gateway/`, `apps/` |
+| **`M11`** | 双闸门防坍塌自演化引擎与普惠便携技能导出（**RC 里程碑**） | 🔜 Next | `packages/evolution/` |
 
 ### 一分钟本机体验与零 Token 测试
 ```powershell
-# 1. 跑全量回归测试（当前 M00–M09 合计 138/138 绿灯，失败日志自动脱水 <=35 行）
+# 1. 跑全量回归测试（当前 M00–M10 合计 145/145 绿灯，失败日志自动脱水 <=35 行）
 python forge/scripts/forge_guard.py test tests/
 
 # 2. 查看 C00 宪章指纹、积木健康与 5 个活跃创世种子技能

@@ -282,6 +282,18 @@
         <div class="output-box" id="outputBox">欢迎使用汇桥 OS 本地离线共生工作台。
 左侧可一键体验 5 个创世种子技能，所有轨迹与产物均自动保存在本机 SQLite WAL 状态库中，零外部云端依赖。</div>
         <div class="notes-box" id="notesBox"></div>
+
+        <div id="feedbackBar" style="display:none;margin-top:14px;padding-top:12px;border-top:1px dashed var(--border);">
+          <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">1 秒共生反馈（驱动本地记忆与自演化种子）</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+            <input type="text" id="feedbackNote" placeholder="可选：一句话纠偏偏好或技能种子名称..." style="flex:1;min-width:180px;padding:6px 9px;font-size:12.5px;" />
+            <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;" onclick="sendFeedback('praise')">赞 · 正向强化</button>
+            <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;" onclick="sendFeedback('dislike')">踩 · 记入避坑</button>
+            <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;" onclick="sendFeedback('correct')">纠偏 · 写入偏好</button>
+            <button class="btn" style="padding:5px 10px;font-size:12px;" onclick="sendFeedback('save_skill_seed')">存为技能种子</button>
+          </div>
+          <div id="feedbackStatus" style="font-size:11.5px;color:var(--brand);"></div>
+        </div>
       </div>
     </section>
 
@@ -312,6 +324,12 @@
 
         <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">生成产物 (Artifacts)</div>
         <div id="artifactList" style="font-size:12px;color:var(--muted);margin-bottom:14px;">暂无产物</div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:12px;font-weight:700;color:var(--muted);">本地透明记忆 (MEMORY.md)</span>
+          <button class="btn btn-secondary" style="padding:2px 7px;font-size:11px;" onclick="loadMemories()">同步</button>
+        </div>
+        <div id="memoryList" style="font-size:12px;color:var(--muted);margin-bottom:14px;">暂无记忆条目</div>
 
         <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">事件流轨迹 (Append-Only)</div>
         <div id="eventList"></div>
@@ -363,6 +381,7 @@
       }
       await loadSkills();
       await loadRuns();
+      await loadMemories();
     }
 
     async function loadSkills() {
@@ -397,6 +416,8 @@
     function renderRunDetail(run) {
       currentRunId = run.run_id;
       document.getElementById("activeRunTag").textContent = `${run.run_id} · ${run.status}`;
+      document.getElementById("feedbackBar").style.display = "block";
+      document.getElementById("feedbackStatus").textContent = "";
 
       const rb = document.getElementById("routeBanner");
       if (run.route_decision) {
@@ -502,6 +523,52 @@
       const data = await res.json();
       document.getElementById("steerInput").value = "";
       renderRunDetail(data);
+    }
+
+    async function sendFeedback(kind) {
+      if (!currentRunId) return;
+      const noteEl = document.getElementById("feedbackNote");
+      const note = noteEl.value.trim();
+      if (kind === "correct" && !note) {
+        document.getElementById("feedbackStatus").textContent = "请先在输入框填写一句话纠偏内容。";
+        return;
+      }
+      const res = await fetch(`/api/runs/${currentRunId}/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind, note })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        noteEl.value = "";
+        document.getElementById("feedbackStatus").textContent =
+          `已记录 [${data.kind}] (${data.elapsed_ms}ms)` + (data.created_seed_id ? ` · 技能种子 ${data.created_seed_id}` : "");
+        await loadMemories();
+        await inspectRun(currentRunId);
+      } else {
+        document.getElementById("feedbackStatus").textContent = data.detail || "反馈提交失败";
+      }
+    }
+
+    async function loadMemories() {
+      await fetch("/api/memory/sync", { method: "POST" });
+      const data = await (await fetch("/api/memory?top_k=8")).json();
+      const box = document.getElementById("memoryList");
+      if (!data.memories || !data.memories.length) {
+        box.textContent = "暂无活跃记忆（可通过纠偏写入或编辑 MEMORY.md）";
+        return;
+      }
+      box.innerHTML = data.memories.map(m =>
+        `<div class="event-item" style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start;">
+           <span><span class="tag">${m.layer}</span> ${m.content}</span>
+           <button class="btn btn-secondary" style="padding:1px 6px;font-size:10.5px;" onclick="forgetMemory('${m.memory_id}')">遗忘</button>
+         </div>`
+      ).join("");
+    }
+
+    async function forgetMemory(memId) {
+      await fetch(`/api/memory/${memId}`, { method: "DELETE" });
+      await loadMemories();
     }
 
     initDashboard();

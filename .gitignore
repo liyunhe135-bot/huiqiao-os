@@ -24,6 +24,8 @@ models/
 offline_cache/
 workspace/runs/
 workspace/.huiqiao/
+workspace/MEMORY.md
+workspace/memory/
 
 # Secrets & OS junk
 .env

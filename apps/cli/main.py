@@ -201,6 +201,46 @@ def cmd_resume(
     _print_run_result(res)
 
 
+@app.command("feedback")
+def cmd_feedback(
+    run_id: str = typer.Argument(..., help="目标 run_id"),
+    kind: str = typer.Argument(..., help="praise | dislike | correct | save_skill_seed"),
+    note: str = typer.Option("", "--note", "-n", help="1秒补充纠偏或技能种子标题"),
+    topic: Optional[str] = typer.Option(None, "--topic", "-t", help="可选双时态主题键"),
+    db: Optional[str] = typer.Option(None, "--db", help="可选自定义状态库路径"),
+) -> None:
+    """提交 1 秒 4 键反馈（赞 / 踩 / 纠偏 / 存为技能种子）。"""
+    svc = _make_service(db)
+    ev = svc.submit_feedback(run_id, kind=kind, note=note, topic_key=topic)
+    typer.echo(
+        f"[反馈已落盘] kind={ev['kind']} | elapsed={ev['elapsed_ms']}ms | "
+        f"memory_id={ev.get('created_memory_id') or '-'} | seed_id={ev.get('created_seed_id') or '-'}"
+    )
+
+
+@app.command("memories")
+def cmd_memories(
+    query: str = typer.Option("", "--query", "-q", help="按关键词混合检索本地记忆"),
+    add: Optional[str] = typer.Option(None, "--add", help="直接新增一条核心记忆"),
+    forget: Optional[str] = typer.Option(None, "--forget", help="按 memory_id 一键遗忘"),
+    db: Optional[str] = typer.Option(None, "--db", help="可选自定义状态库路径"),
+) -> None:
+    """查看、检索、新增或一键遗忘本地透明记忆（同步 MEMORY.md）。"""
+    svc = _make_service(db)
+    if add:
+        rec = svc.add_memory(add)
+        typer.echo(f"已写入核心记忆 [{rec['memory_id']}]: {rec['content']}")
+        return
+    if forget:
+        rec = svc.forget_memory(forget)
+        typer.echo(f"已彻底遗忘记忆 [{rec['memory_id']}] (status={rec['status']})")
+        return
+    items = svc.recall_memories(query, top_k=15)
+    typer.echo(f"本地活跃记忆共 {len(items)} 条 (真相源文件: {svc.memory.memory_md_path}):")
+    for m in items:
+        typer.echo(f"  - [{m['memory_id']}] ({m['layer']}) {m['content']}")
+
+
 @app.command("serve")
 def cmd_serve(
     host: str = typer.Option("127.0.0.1", "--host", help="默认严格绑定本机回环地址"),

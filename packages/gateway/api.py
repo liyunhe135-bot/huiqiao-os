@@ -32,6 +32,26 @@ class ResumeRequest(BaseModel):
     approval_payload: dict[str, Any] = Field(default_factory=dict)
 
 
+class FeedbackSubmitRequest(BaseModel):
+    kind: str = Field(..., min_length=1, description="praise | dislike | correct | save_skill_seed")
+    note: str = Field(default="")
+    topic_key: str | None = Field(default=None)
+    scope: str = Field(default="default")
+
+
+class MemoryCreateRequest(BaseModel):
+    content: str = Field(..., min_length=1)
+    layer: str = Field(default="core")
+    topic_key: str | None = Field(default=None)
+    tags: list[str] = Field(default_factory=list)
+    scope: str = Field(default="default")
+
+
+class MemoryUpdateRequest(BaseModel):
+    content: str = Field(..., min_length=1)
+    topic_key: str | None = Field(default=None)
+
+
 def create_app(
     service: HuiQiaoService | None = None,
     *,
@@ -130,6 +150,83 @@ def create_app(
             )
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.post("/runs/{run_id}/feedback")
+    @app.post("/api/runs/{run_id}/feedback")
+    def submit_feedback(run_id: str, req: FeedbackSubmitRequest) -> dict[str, Any]:
+        try:
+            return svc.submit_feedback(
+                run_id,
+                kind=req.kind,
+                note=req.note,
+                topic_key=req.topic_key,
+                scope=req.scope,
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/memory")
+    @app.get("/api/memory")
+    def query_memory(
+        q: str = "",
+        scope: str = "default",
+        top_k: int = 20,
+        include_history: bool = False,
+    ) -> dict[str, Any]:
+        items = svc.recall_memories(
+            q,
+            scope=scope,
+            top_k=top_k,
+            include_history=include_history,
+        )
+        return {
+            "count": len(items),
+            "memory_md_path": str(svc.memory.memory_md_path),
+            "memories": items,
+        }
+
+    @app.post("/memory")
+    @app.post("/api/memory")
+    def create_memory(req: MemoryCreateRequest) -> dict[str, Any]:
+        try:
+            return svc.add_memory(
+                req.content,
+                layer=req.layer,
+                topic_key=req.topic_key,
+                tags=req.tags,
+                scope=req.scope,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.put("/memory/{memory_id}")
+    @app.put("/api/memory/{memory_id}")
+    def update_memory(memory_id: str, req: MemoryUpdateRequest) -> dict[str, Any]:
+        try:
+            return svc.edit_memory(memory_id, content=req.content, topic_key=req.topic_key)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.delete("/memory/{memory_id}")
+    @app.delete("/api/memory/{memory_id}")
+    def delete_memory(memory_id: str) -> dict[str, Any]:
+        try:
+            return svc.forget_memory(memory_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.post("/memory/sync")
+    @app.post("/api/memory/sync")
+    def sync_memory_markdown() -> dict[str, Any]:
+        return svc.sync_memories_from_markdown()
+
+    @app.get("/skill-seeds")
+    @app.get("/api/skill-seeds")
+    def get_skill_seeds() -> dict[str, Any]:
+        seeds = svc.list_skill_seeds()
+        return {"count": len(seeds), "seeds": seeds}
 
     @app.websocket("/ws/tasks")
     async def ws_stream_tasks(ws: WebSocket) -> None:

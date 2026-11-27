@@ -1,0 +1,46 @@
+# 汇桥 OS（HuiQiao OS）安全治理与确定性策略配置（M04 Governance）
+schema_version: "huiqiao/v1"
+
+# 默认 100% 本地离线，物理阻断非回环外联
+offline_only: true
+loopback_hosts:
+  - "127.0.0.1"
+  - "localhost"
+  - "::1"
+
+# 允许操作的本地工作区白名单（运行期可按 TaskEnvelope.constraints.allowed_paths 收窄）
+default_allowed_paths:
+  - "./workspace"
+  - "./data"
+
+# 永久死锁的敏感目录与凭证模式（即使位于允许路径内部也不得读写）
+sensitive_path_keywords:
+  - ".ssh"
+  - "id_rsa"
+  - "id_ed25519"
+  - ".aws"
+  - ".gnupg"
+  - ".env"
+  - "credentials"
+  - "chrome/user data"
+  - "edge/user data"
+  - "c:/windows"
+  - "c:/program files"
+  - "/etc/passwd"
+  - "/etc/shadow"
+  - "/system/library"
+
+# 必须触发人工审批或硬证据的高危动作
+high_risk_actions:
+  - "delete"
+  - "rmtree"
+  - "overwrite_core"
+  - "pkg_install"
+  - "shell_destructive"
+
+# 证据闸门要求（由客观执行结果签发，绝不听信模型口头声称）
+evidence_gates:
+  PreCommit:
+    required: ["test_passed"]
+  PreWriteDelete:
+    required: ["human_approved"]

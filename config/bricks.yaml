@@ -1,0 +1,79 @@
+# 汇桥 OS（HuiQiao OS）乐高积木装配清单（统一兼容 M00–M03）
+schema_version: "huiqiao/v1"
+
+# 1. 扁平 6 积木装配表（供 python -m packages.core.cli 与基础集成测试验证）
+bricks:
+  - name: "ingest"
+    role: "B01"
+    impl: "packages.core.mock_bricks:MockIngest"
+    fallback_impl: "packages.core.mock_bricks:MockIngestFallback"
+  - name: "router"
+    role: "B02"
+    impl: "packages.core.mock_bricks:MockRouter"
+    fallback_impl: "packages.core.mock_bricks:MockRouterFallback"
+  - name: "orchestrator"
+    role: "B03"
+    impl: "packages.core.mock_bricks:MockOrchestrator"
+  - name: "llm_gateway"
+    role: "B04"
+    impl: "packages.core.mock_bricks:MockLLMGateway"
+  - name: "gate"
+    role: "B10"
+    impl: "packages.core.mock_bricks:MockGate"
+  - name: "ledger"
+    role: "B08"
+    impl: "packages.core.mock_bricks:MockLedger"
+
+# 2. 按层多候选热插拔槽位（后续真实积木接入此区）
+slots:
+  llm_gateway:
+    active: "mock-llm-gateway"
+    bricks:
+      mock-llm-gateway:
+        brick_id: "b04-mock-llm-gateway"
+        layer: "llm_gateway"
+        version: "0.1.0"
+        contract_version: "huiqiao/v1"
+        entrypoint: "packages.core.registry:NullBrick"
+        capabilities: ["healthcheck"]
+        enabled: false
+        note: "M01 真实适配器就绪后切为 enabled: true"
+
+  sandbox:
+    active: "mock-sandbox"
+    bricks:
+      mock-sandbox:
+        brick_id: "b07-mock-sandbox"
+        layer: "sandbox"
+        version: "0.1.0"
+        contract_version: "huiqiao/v1"
+        entrypoint: "packages.core.registry:NullBrick"
+        capabilities: ["healthcheck"]
+        enabled: false
+        note: "M08 施工完成后替换为 WASM / OS-Native / MicroVM-Docker 适配器"
+
+  memory:
+    active: "mock-memory"
+    bricks:
+      mock-memory:
+        brick_id: "b08-mock-memory"
+        layer: "memory"
+        version: "0.1.0"
+        contract_version: "huiqiao/v1"
+        entrypoint: "packages.core.registry:NullBrick"
+        capabilities: ["healthcheck"]
+        enabled: false
+        note: "M10 施工完成后替换为 FileFirstSqliteMemory"
+
+  governance:
+    active: "m04-governance-guard"
+    bricks:
+      m04-governance-guard:
+        brick_id: "b10-governance-guard"
+        layer: "governance"
+        version: "1.0.0"
+        contract_version: "huiqiao/v1"
+        entrypoint: "packages.governance.guard:GovernanceGuard"
+        capabilities: ["lifecycle_hooks", "work_mode_guard", "evidence_gate", "diff_preview"]
+        enabled: false
+        note: "M04 已落盘并通过 22 项越权与性能单测"

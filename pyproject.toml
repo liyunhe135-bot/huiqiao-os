@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "huiqiao-os"
+version = "0.1.0"
+description = "汇桥 OS (HuiQiao OS) - 本地离线乐高式共生智能调度与自演化系统"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.10,<3.0",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q --tb=short"
+markers = [
+    "contract: 数据契约序列化与校验",
+    "registry: 积木注册表与热替换",
+    "gateway: M01 本地模型网关与省积分路由",
+    "profiler: M02 离线能力摸底器",
+    "mcp: M03 MCP 能力总线与 Tool Search",
+    "ingest: M03 本地全格式文档解析",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

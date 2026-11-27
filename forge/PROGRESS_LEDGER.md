@@ -13,8 +13,8 @@
 | `M03` | 核心 MCP 总线与全格式文档解析 | 管编码：`Gemini 4 Carbon (Medium)` | `done` | 100% | ✅ | `packages/mcp_bus/` + `packages/doc_ingest/` + 单测全绿（全库 57/57 通过） |
 | `M04` | 确定性生命周期 Hooks 与三档模式守卫 | 管编码/安全：`Gemini 4 Neon / Carbon` | `done` | 100% | ✅ | `packages/governance/` + `config/policies.yaml` + 22 项越权与 <5ms 性能全绿（全库 79/79） |
 | `M05` | 持久化 ADK 五原语编排与流式状态机 | 管大脑：`Gemini 4 Neon (Extra High)` | `done` | 100% | ✅ | `packages/orchestrator/`（WAL+ADK五原语+HITL+改向+子进程强杀续跑，全库 89/89） |
-| `M06` | 柔硬结合路由与语义共生执行内核 | 管编码：`Gemini 4 Carbon (Medium)` | `next` | — | ⬜ | 下一块开工目标（建议切 Carbon 省 55% 额度） |
-| `M07` | 统一网关、CLI/WebUI 与 5 创世种子技能 | 管编码：`Gemini 4 Carbon (Medium)` | `pending` | — | ⬜ | 轻量单页 WebUI 壳 → Alpha MVP |
+| `M06` | 柔硬结合路由与语义共生执行内核 | 管编码：`Gemini 4 Carbon (Medium)` | `done` | 100% | ✅ | `packages/router/` + `packages/workers/`（20题评测通过/0误塞CodeAct，全库 97/97） |
+| `M07` | 统一网关、CLI/WebUI 与 5 创世种子技能 | 管编码：`Gemini 4 Carbon (Medium)` | `next` | — | ⬜ | 下一块开工即达 **Alpha MVP（100%离线可用）**！ |
 | `M08` | 分级本地安全沙箱 | 管大脑：`Claude Opus 5.5 / Gemini 4 Neon` | `pending` | — | ⬜ | — |
 | `M09` | CodeAct、上下文四件套与亲和 Subagent | 管大脑：`Gemini 4 Neon (Extra High)` | `pending` | — | ⬜ | 完成后达 Beta 里程碑 |
 | `M10` | 分层本地记忆引擎与 1 秒反馈闭环 | 管编码：`Gemini 4 Carbon / Claude Sonnet 5.5` | `pending` | — | ⬜ | — |
@@ -25,14 +25,14 @@
 
 ## 二、最新会话无缝交接快照（供下一次新会话直接接棒）
 
-- **更新时间**：2026-11-27 08:55
+- **更新时间**：2026-11-27 09:00
 - **已完成**：
-  1. `M00`–`M04` 已完成公开开源发布（`https://github.com/liyunhe135-bot/huiqiao-os`，云端 CI 绿灯）；
-  2. **`M05`（持久化 ADK 五原语编排引擎、SQLite WAL 强杀续跑、HITL `interrupt()` 挂起恢复、中途改向 `steer()`、部分产物保留与 YAML 声明流）完整落盘**；
-  3. **全仓库 `89 / 89` 项单测 100% 绿灯**，`python -m packages.core.cli` 6/6 全通过。
+  1. `M00`–`M05` 全部通过并已公开备份至 GitHub（CI 绿灯）；
+  2. **`M06`（`HybridRouter` 二维五通道柔硬路由、`SemanticCoCreatorWorker` L2-S 语义共生双态内核、`ReActWorker` 联动 `ToolSearch`/`GovernanceGuard`/`<think>` 剥离）完整落盘**；
+  3. **全仓库 `97 / 97` 项单测 100% 绿灯**，20 题混合路由评测通过且低可验证任务 0% 误塞 CodeAct。
 - **单写者锁状态**：`forge/.active_writer.lock` 持续开启，严禁其他智能体并发修改本目录。
-- **下一块待施工**：**`M06`（柔硬结合路由与语义共生执行内核 `L2-S` + `ReActWorker`）**
+- **下一块待施工**：**`M07`（统一网关、CLI / 轻量 WebUI 与 5 个创世种子技能 → 达成 `INT-1` Alpha MVP！）**
 - **推荐切换模型**：
-  - 优先：**`Gemini 4 Carbon (Medium)`**（管编码，比 `Extra High` 省 55% 额度，完全胜任！）
-- **下一会话极简开场指令**（执行 `python forge/scripts/forge_guard.py brief M06` 也可自动生成）：
-  > 请激活 `huiqiao-forge-os` 技能，开始施工汇桥 OS 积木 `M06`（柔硬结合路由与语义共生执行内核）。仅读取 `forge/BRICK_CONTEXT_CARD.md`、`forge/PROGRESS_LEDGER.md` 和 `packages/orchestrator/engine.py`，先输出文件清单、路由与 Worker 接口骨架（<100 行），确认后落盘并跑通 `forge_guard.py test`。
+  - 优先：**`Gemini 4 Carbon (Medium)`**（管编码，前端单页+CLI+5 个种子 Skill 极省额度）
+- **下一会话极简开场指令**（执行 `python forge/scripts/forge_guard.py brief M07` 也可自动生成）：
+  > 请激活 `huiqiao-forge-os` 技能，开始施工汇桥 OS 积木 `M07`（统一网关、CLI/轻量 WebUI 与 5 个创世种子技能，达成 Alpha MVP）。仅读取 `forge/BRICK_CONTEXT_CARD.md`、`forge/PROGRESS_LEDGER.md` 和 `packages/router/router.py`，先输出文件清单与 API/CLI 接口骨架（<100 行），确认后落盘并跑通 `forge_guard.py test`。

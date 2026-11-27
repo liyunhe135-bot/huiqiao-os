@@ -833,6 +833,7 @@
       <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" title="统一管理：规划池技能 -> 候选种子 -> 双闸门测试上线 -> 便携包导出" onclick="openTrinityHub('skills')">🧩 技能规划库 <span id="hdrSkillHubCnt" class="tag" style="margin-left:3px;">0</span></button>
       <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" title="管理防偏移与编码踩坑铁律，每次推理自动挂载防复发" onclick="openTrinityHub('experiences')">📚 经验防坑库 <span id="hdrExpCnt" class="tag" style="margin-left:3px;">0</span></button>
       <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" title="查看当前不断档项目会话链、滚动摘要与绑定代码产物" onclick="openTrinityHub('context')">🔗 上下文链</button>
+      <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" title="按七大架构铁律实时自动诊测、输出原始vs高纯度优化对比并一键分享（85%纯规则0显存 + 15%可选本地模型点睛）" onclick="openCoachPanel(false)">🧭 七律教练 <span id="hdrCoachScore" class="tag tag-ok" style="margin-left:3px;">待诊</span></button>
       <button class="btn btn-secondary" id="termModeBtn" style="padding:4px 9px;font-size:11.5px;" title="在『大众科技白话』与『禅意觉悟术语（附白话悬停解释）』之间一键切换" onclick="toggleTerminologyMode()">🌐 语境: 大众白话</button>
       <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" onclick="toggleGuide()">📖 怎么用</button>
     </div>
@@ -891,13 +892,23 @@
           </div>
         </div>
 
-        <textarea id="taskInput" rows="3" placeholder="输入您的想法，或直接输入『继续加上背诵计时器和按品搜索』跟进修改当前绑定应用..."></textarea>
+        <textarea id="taskInput" rows="3" oninput="scheduleAutoCoach()" placeholder="输入您的想法，或直接输入『继续加上背诵计时器和按品搜索』跟进修改当前绑定应用..."></textarea>
+
+        <!-- 实时零显存自动教练体检条 -->
+        <div id="coachLiveStrip" style="margin-top:6px;padding:5px 10px;border:1px dashed rgba(255,214,10,0.35);background:rgba(255,214,10,0.045);font-size:11.5px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span id="coachLiveText" style="color:var(--text-muted);">🧭 七律教练实时待命中（输入任意需求即自动做 0 显存七律体检与对比）</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="openCoachPanel(false)">🔍 查看建议对比</button>
+            <button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="shareCoachReport()">📤 生成分享页</button>
+          </div>
+        </div>
 
         <div class="input-row">
           <input type="text" id="attachInput" placeholder="可选：本地文件或目录路径（多个以分号 ; 分隔）" />
           <label class="cyber-check" title="勾选在对本地文件夹归档等场景实际执行移动">
             <input type="checkbox" id="applyCheck" onchange="onApplyCheckChange(this.checked)" /> 实际落盘
           </label>
+          <button class="btn btn-secondary" id="coachBtn" onclick="openCoachPanel(false)" title="0 显存秒诊 L1~L7 七大架构铁律，提供原始 vs 优化版左右直接对比并支持分享">🧭 教练对比</button>
           <button class="btn btn-secondary" id="designBtn" onclick="openSfdpStudio()" title="PRD v3.0 推荐：先生成 3~4 个关键设计选项与规格书，您可修改确认后再构建">📐 先设计规格</button>
           <button class="btn" id="submitBtn" onclick="submitTask()">⚡ 直接构建 / 运行</button>
         </div>
@@ -929,6 +940,24 @@
           <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
             <button class="btn" style="padding:5px 12px;font-size:12px;" onclick="fillCodingDemo(true)">📐 体验「先设计规格 → 再构建运行」：《俱舍诵疏》打卡小程序</button>
           </div>
+        </div>
+
+        <!-- 汇桥七律架构教练对比与分享面板（85%纯代码规则0显存 + 15%按需本机模型深度点睛） -->
+        <div class="trinity-hub-panel" id="coachPanel">
+          <div class="delivery-tab-bar" style="justify-content:space-between;align-items:center;padding:6px 10px;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <strong style="color:var(--cyber-yellow);font-size:13.5px;">🧭 汇桥七律架构教练 · 实时诊测与建议对比</strong>
+              <span id="coachModeBadge" class="tag tag-ok">⚡ 纯确定性规则+环境探针（0 显存开销）</span>
+              <span id="coachScoreBadge" class="tag">—</span>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn btn-secondary" id="coachAiBtn" style="padding:3px 9px;font-size:11px;" onclick="openCoachPanel(true)" title="按铁律1按需调用本机显卡模型补充 15% 深度商业与体验点睛">🧠 追加本机AI深度点评(15%)</button>
+              <button class="btn btn-secondary" style="padding:3px 9px;font-size:11px;" onclick="copyCoachMarkdown()">📋 复制对比文本</button>
+              <button class="btn" style="padding:3px 9px;font-size:11px;" onclick="shareCoachReport()">📤 生成分享海报页</button>
+              <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="closeCoachPanel()">收起</button>
+            </div>
+          </div>
+          <div class="delivery-tab-body" id="coachPanelBody"></div>
         </div>
 
         <!-- 三大持久中枢面板：Skill 规划管理库 · 经验防坑库 · 不断档上下文跟踪链 -->
@@ -1698,6 +1727,191 @@
       const inp = document.getElementById("taskInput");
       inp.value = "继续优化当前应用：保留全部原有功能与数据，新增按关键词快速筛选和 15 分钟专注背诵倒计时器。";
       inp.focus();
+      scheduleAutoCoach();
+    }
+
+    // --- 汇桥七律架构教练（自动零显存分析 + 左右直接建议对比 + 一键套用 & 分享） ---
+    let latestCoachData = null;
+    let coachDebounceTimer = null;
+
+    function scheduleAutoCoach() {
+      clearTimeout(coachDebounceTimer);
+      coachDebounceTimer = setTimeout(() => {
+        runCoachAnalyze(false, false);
+      }, 450);
+    }
+
+    function closeCoachPanel() {
+      document.getElementById("coachPanel").style.display = "none";
+    }
+
+    async function openCoachPanel(useAi = false) {
+      document.getElementById("coachPanel").style.display = "block";
+      await runCoachAnalyze(useAi, true);
+    }
+
+    async function runCoachAnalyze(useAi = false, renderFull = true) {
+      const text = document.getElementById("taskInput").value.trim();
+      const aiBtn = document.getElementById("coachAiBtn");
+      if (useAi && aiBtn) {
+        aiBtn.disabled = true;
+        aiBtn.textContent = "🧠 本机模型深度点评中...";
+      }
+      try {
+        const res = await fetch("/api/coach/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text,
+            work_mode: currentMode,
+            session_id: document.getElementById("sessionSelect").value || null,
+            follow_context: document.getElementById("followContextCheck").checked,
+            use_ai: useAi
+          })
+        });
+        latestCoachData = await res.json();
+        updateCoachLiveBar(latestCoachData);
+        if (renderFull || document.getElementById("coachPanel").style.display === "block") {
+          renderCoachPanel(latestCoachData);
+        }
+      } catch (e) {
+      } finally {
+        if (aiBtn) {
+          aiBtn.disabled = false;
+          aiBtn.textContent = "🧠 追加本机AI深度点评(15%)";
+        }
+      }
+    }
+
+    function updateCoachLiveBar(d) {
+      if (!d) return;
+      const hdr = document.getElementById("hdrCoachScore");
+      hdr.textContent = `${d.overall_score}分`;
+      hdr.className = d.overall_score >= 88 ? "tag tag-ok" : (d.overall_score >= 75 ? "tag tag-warn" : "tag tag-err");
+
+      const strip = document.getElementById("coachLiveStrip");
+      strip.style.display = "flex";
+      const txtEl = document.getElementById("coachLiveText");
+      const warnLaws = (d.laws || []).filter(x => x.status !== "PASS").map(x => `${x.law_id}(${x.status})`);
+      txtEl.innerHTML =
+        `<strong style="color:var(--cyber-yellow);">🧭 七律自动体检：${d.overall_score}分 (${escapeHtml(d.grade)})</strong> ` +
+        `· 绿${d.pass_count} / 黄${d.warn_count} / 红${d.risk_count}` +
+        (warnLaws.length ? ` · 建议关注: <code>${escapeHtml(warnLaws.join(", "))}</code>` : " · 七律全绿，适合直接开干！");
+    }
+
+    function renderCoachPanel(d) {
+      if (!d) return;
+      document.getElementById("coachModeBadge").textContent =
+        d.engine_mode === "rules_85_plus_local_ai_15"
+          ? "⚡ 85% 确定性规则 + 15% 本机模型深度点睛"
+          : "⚡ 100% 纯确定性代码规则+环境探针（0 显存开销）";
+      const sc = document.getElementById("coachScoreBadge");
+      sc.textContent = `综合 ${d.overall_score}/100 · ${d.grade}`;
+      sc.className = d.overall_score >= 88 ? "tag tag-ok" : (d.overall_score >= 75 ? "tag tag-warn" : "tag tag-err");
+
+      const cmp = d.comparison || {};
+      const split = cmp.split_80_20 || {};
+      const detList = (split.deterministic_code_80 || []).map(x => `<li>${escapeHtml(x)}</li>`).join("");
+      const aiList = (split.ai_reasoning_20 || []).map(x => `<li>${escapeHtml(x)}</li>`).join("");
+      const acList = (cmp.auto_assertions || []).map(x => `<li>${escapeHtml(x)}</li>`).join("");
+      const reuseHtml = (cmp.reusable_skills && cmp.reusable_skills.length)
+        ? `<div style="margin-top:6px;font-size:12px;color:var(--emerald);">♻️ 检测到可直接复用的已有 L0 确定性技能：${escapeHtml(cmp.reusable_skills.join(" / "))}</div>`
+        : "";
+      const aiDeepHtml = d.ai_deep_advice
+        ? `<div class="hub-card" style="border-left-color:var(--emerald);margin-bottom:10px;">
+             <strong style="color:var(--emerald);">🧠 本机模型 15% 深度业务点睛：</strong>
+             <div style="margin-top:4px;white-space:pre-wrap;font-size:12.5px;">${escapeHtml(d.ai_deep_advice)}</div>
+           </div>`
+        : "";
+
+      const lawsHtml = (d.laws || []).map(lw => {
+        const cls = lw.status === "PASS" ? "tag tag-ok" : (lw.status === "WARN" ? "tag tag-warn" : "tag tag-err");
+        const borderC = lw.status === "PASS" ? "var(--emerald)" : (lw.status === "WARN" ? "var(--cyber-yellow)" : "var(--danger)");
+        return `<div class="hub-card" style="border-left-color:${borderC};">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+            <strong style="color:var(--text-main);">${escapeHtml(lw.law_id)} · ${escapeHtml(lw.name)}</strong>
+            <span class="${cls}">${escapeHtml(lw.status)} · ${lw.score}分</span>
+          </div>
+          <div style="font-size:12px;margin-top:4px;color:var(--text-main);">${escapeHtml(lw.finding)}</div>
+          <div style="font-size:11.5px;margin-top:2px;color:var(--text-muted);">💡 管控建议：${escapeHtml(lw.actionable_fix)}</div>
+        </div>`;
+      }).join("");
+
+      document.getElementById("coachPanelBody").innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-bottom:10px;">
+          <div class="hub-card" style="margin-bottom:0;">
+            <div style="color:var(--text-muted);font-size:12px;font-weight:700;margin-bottom:5px;">① 当前客户/用户原始输入</div>
+            <pre style="margin:0;max-height:155px;overflow:auto;">${escapeHtml(cmp.original_input || "（输入框为空：请在上方输入需求，教练将实时生成对比优化版）")}</pre>
+            ${reuseHtml}
+          </div>
+          <div class="hub-card" style="margin-bottom:0;border-left-color:var(--cyber-yellow);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;gap:6px;flex-wrap:wrap;">
+              <span style="color:var(--cyber-yellow);font-size:12px;font-weight:700;">② 教练重构高纯度乐高优化版（防偏移）</span>
+              <button class="btn" style="padding:2px 9px;font-size:11px;" onclick="applyCoachOptimized()">✨ 一键套用到输入框</button>
+            </div>
+            <pre style="margin:0;max-height:155px;overflow:auto;">${escapeHtml(cmp.optimized_prompt || "")}</pre>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-bottom:10px;">
+          <div class="hub-card" style="margin-bottom:0;">
+            <strong style="color:var(--cyber-yellow);font-size:12px;">⚙️ 铁律 1 · 80% 确定性代码负责（零误差）</strong>
+            <ul style="margin:4px 0 0 16px;font-size:12px;">${detList}</ul>
+          </div>
+          <div class="hub-card" style="margin-bottom:0;">
+            <strong style="color:var(--cyber-yellow);font-size:12px;">✨ 铁律 1 · 20% AI 精准点睛 + 自动装配硬断言</strong>
+            <ul style="margin:4px 0 0 16px;font-size:12px;">${aiList}${acList}</ul>
+          </div>
+        </div>
+
+        ${aiDeepHtml}
+        <div style="font-size:12px;color:var(--cyber-yellow);font-weight:700;margin:8px 0 6px;">📊 七大架构铁律逐项管控台账（L1–L7）</div>
+        ${lawsHtml}
+      `;
+    }
+
+    function applyCoachOptimized() {
+      if (!latestCoachData || !latestCoachData.comparison) return;
+      const opt = latestCoachData.comparison.optimized_prompt || "";
+      if (!opt) return;
+      document.getElementById("taskInput").value = opt;
+      runCoachAnalyze(false, true);
+    }
+
+    async function copyCoachMarkdown() {
+      if (!latestCoachData) await runCoachAnalyze(false, false);
+      const md = (latestCoachData && latestCoachData.share_markdown) || "";
+      if (!md) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(md);
+        alert("📋 已复制『汇桥七律教练对比报告 (Markdown)』到剪贴板，可直接粘贴发微信/飞书或发给客户！");
+      } else {
+        prompt("请复制以下对比报告文本：", md);
+      }
+    }
+
+    async function shareCoachReport() {
+      const text = document.getElementById("taskInput").value.trim();
+      const useAi = !!(latestCoachData && latestCoachData.engine_mode === "rules_85_plus_local_ai_15");
+      const res = await fetch("/api/coach/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          work_mode: currentMode,
+          session_id: document.getElementById("sessionSelect").value || null,
+          follow_context: document.getElementById("followContextCheck").checked,
+          use_ai: useAi
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.share && data.share.preview_url) {
+        latestCoachData = data.analysis;
+        updateCoachLiveBar(data.analysis);
+        window.open(data.share.preview_url, "_blank");
+      } else {
+        alert(data.detail || "生成分享对比报告失败");
+      }
     }
 
     async function loadSkills() {

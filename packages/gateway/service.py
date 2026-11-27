@@ -21,6 +21,7 @@ from packages.core.contracts import (
     WorkMode,
     new_id,
 )
+from packages.coach import LawCoachEngine
 from packages.evolution import SelfEvolutionEngine
 from packages.gateway.skills_loader import SkillRegistry
 from packages.governance import GovernanceGuard
@@ -164,6 +165,8 @@ class HuiQiaoService:
             skills=self.skills,
             run_store=self.store,
         )
+        self.coach = LawCoachEngine()
+        self.coach_reports_dir = (resolved_mem_dir / "coach_reports").resolve()
         self.capability_profile = capability_profile
 
     def healthcheck(self) -> dict[str, Any]:
@@ -1135,6 +1138,60 @@ class HuiQiaoService:
 
     def switch_context_session(self, session_id: str) -> dict[str, Any]:
         return self.hub.switch_session(session_id)
+
+    # --- 七律架构教练（默认 100% 纯代码规则秒诊，可选 15% 本地模型深度点睛 + 分享报告） ---
+    def analyze_with_coach(
+        self,
+        text: str,
+        *,
+        work_mode: str = "ask",
+        session_id: str | None = None,
+        follow_context: bool = True,
+        use_ai: bool = False,
+    ) -> dict[str, Any]:
+        ses = (
+            self.hub.switch_session(session_id)
+            if session_id
+            else self.hub.get_active_session()
+        )
+        skill_hub = self.hub.get_skill_hub_overview()
+        safe_ctx = (
+            self.capability_profile.safe_effective_ctx
+            if self.capability_profile is not None
+            else 8192
+        )
+        return self.coach.analyze(
+            text,
+            work_mode=work_mode,
+            session=ses,
+            experiences=self.hub.list_experiences(),
+            skill_plans=skill_hub.get("plans") or [],
+            active_skills=skill_hub.get("active_skills") or [],
+            recent_runs=self.store.list_runs(limit=15),
+            follow_context=follow_context,
+            safe_ctx_budget=safe_ctx,
+            use_ai=use_ai,
+            infer_fn=self._semantic_infer_fn if use_ai else None,
+        )
+
+    def share_coach_report(
+        self,
+        text: str,
+        *,
+        work_mode: str = "ask",
+        session_id: str | None = None,
+        follow_context: bool = True,
+        use_ai: bool = False,
+    ) -> dict[str, Any]:
+        analysis = self.analyze_with_coach(
+            text,
+            work_mode=work_mode,
+            session_id=session_id,
+            follow_context=follow_context,
+            use_ai=use_ai,
+        )
+        share = self.coach.save_share_report(analysis, self.coach_reports_dir)
+        return {"analysis": analysis, "share": share}
 
     def list_recent_runs(self, limit: int = 20) -> list[dict[str, Any]]:
         return self.store.list_runs(limit=limit)

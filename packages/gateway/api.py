@@ -113,6 +113,14 @@ class SessionCreateRequest(BaseModel):
     title: str = Field(default="新项目连续会话")
 
 
+class CoachAnalyzeRequest(BaseModel):
+    text: str = Field(default="")
+    work_mode: str = Field(default="ask")
+    session_id: str | None = Field(default=None)
+    follow_context: bool = Field(default=True)
+    use_ai: bool = Field(default=False)
+
+
 def create_app(
     service: HuiQiaoService | None = None,
     *,
@@ -356,6 +364,16 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @app.get("/preview/coach/{report_name}")
+    def preview_coach_report(report_name: str) -> FileResponse:
+        safe_name = pathlib.Path(report_name).name
+        if not safe_name.endswith(".html") or safe_name != report_name:
+            raise HTTPException(status_code=400, detail="非法报告文件名")
+        fp = (svc.coach_reports_dir / safe_name).resolve()
+        if not fp.is_file() or svc.coach_reports_dir not in fp.parents:
+            raise HTTPException(status_code=404, detail="未找到教练对比报告")
+        return FileResponse(fp)
+
     @app.get("/preview/{run_id}/{artifact_name}")
     def preview_run_artifact(run_id: str, artifact_name: str) -> FileResponse:
         """在浏览器中安全预览指定运行生成的本地小程序或产物文件（防路径穿越）。"""
@@ -479,6 +497,29 @@ def create_app(
             return svc.switch_context_session(session_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    # --- 汇桥七律架构教练 REST API（自动诊测对比 + 一键分享独立报告页） ---
+    @app.post("/coach/analyze")
+    @app.post("/api/coach/analyze")
+    def coach_analyze(req: CoachAnalyzeRequest) -> dict[str, Any]:
+        return svc.analyze_with_coach(
+            req.text,
+            work_mode=req.work_mode,
+            session_id=req.session_id,
+            follow_context=req.follow_context,
+            use_ai=req.use_ai,
+        )
+
+    @app.post("/coach/share")
+    @app.post("/api/coach/share")
+    def coach_share(req: CoachAnalyzeRequest) -> dict[str, Any]:
+        return svc.share_coach_report(
+            req.text,
+            work_mode=req.work_mode,
+            session_id=req.session_id,
+            follow_context=req.follow_context,
+            use_ai=req.use_ai,
+        )
 
     @app.websocket("/ws/tasks")
     async def ws_stream_tasks(ws: WebSocket) -> None:

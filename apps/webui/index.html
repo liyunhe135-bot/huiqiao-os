@@ -469,9 +469,16 @@
 
     .input-row {
       display: flex;
+      flex-wrap: wrap;
       gap: 10px;
       margin-top: 10px;
       align-items: center;
+    }
+
+    .input-row input[type="text"] {
+      flex: 1 1 200px;
+      min-width: 170px;
+      width: auto;
     }
 
     .cyber-check {
@@ -879,7 +886,7 @@
               <textarea id="sfdpPlanMd" rows="7" style="font-size:12px;font-family:var(--mono);"></textarea>
             </div>
           </div>
-          <div style="display:flex;justify-content:flex-end;gap:10px;">
+          <div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;">
             <button class="btn btn-secondary" onclick="refreshSfdpSpec()">🔄 按问答刷新规格</button>
             <button class="btn" id="sfdpBuildBtn" onclick="runSfdpBuild()">🔨 确认规格 · 启动沙箱构建与五件套交付</button>
           </div>
@@ -897,16 +904,16 @@
 
         <div class="output-box" id="outputBox">
           <div class="welcome-hero">
-            <div class="welcome-quote">「汇万川以成海，架慈桥以渡人 · 科技为用，觉悟为体」</div>
-            <p>欢迎进入 <strong>汇桥 OS (HuiQiao OS)</strong> 本地离线共生中枢。本系统 100% 运行于您的个人主机，零外部云端追踪、零 CDN 外联。</p>
+            <div class="welcome-quote">「汇万川以成海，架慈桥以渡人 · 科技为用，智慧为体」</div>
+            <p>欢迎进入 <strong>汇桥 OS (HuiQiao OS)</strong> 本地离线共生工作台。本系统 100% 运行于您的个人主机，零外部云端追踪、零 CDN 外联（右上角可随时切换 <code>🌐 大众白话 ⇄ 🪷 禅意觉悟</code> 界面语境）。</p>
             <ul>
-              <li><strong>左栏点选法宝</strong>：一键填入 5 大创世种子技能模板，秒级体验离线摘要、表格精算、护心复盘与苏格拉底启发；</li>
-              <li><strong>本地编码造物</strong>：切至 <code>Execute · 金刚行持</code> 模式直接输入（如「构建一个背诵俱舍诵疏本地打卡小程序」），调用本机 RTX 显卡大模型在沙箱内直接生成可运行网页应用！</li>
-              <li><strong>四摄回向自演化</strong>：每次运行后可一键「正见纠偏」或「存为技能种子」，经双闸门验真沉淀为永恒本地智慧。</li>
+              <li><strong>左栏快捷技能</strong>：一键填入 5 大离线实用技能模板，秒级体验文档提炼、表格统计、目录预览、复盘规划与启发问答；</li>
+              <li><strong>先设计 · 再构建运行（PRD v3.0 推荐）</strong>：输入想法后点击 <code>📐 先设计规格</code>，先对齐设计问答与《需求规格书》，确认后再由本机显卡大模型在隔离沙箱内生成可运行应用与<strong>交付包五件套</strong>！</li>
+              <li><strong>1 秒反馈自进化</strong>：每次运行后可一键「纠偏写入记忆」或「存为新技能候选」，经双闸门安全测试后沉淀为永久本地技能。</li>
             </ul>
             <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-              <button class="btn" style="padding:6px 13px;font-size:12px;" onclick="fillCodingDemo()">⚡ 试一试：本地编码构建《俱舍诵疏》背诵打卡小程序</button>
-              <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="toggleGuide()">📖 查看 30 秒使用说明书</button>
+              <button class="btn" style="padding:6px 13px;font-size:12px;" onclick="fillCodingDemo(true)">📐 推荐体验：先设计规格 → 构建《俱舍诵疏》打卡小程序</button>
+              <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="toggleGuide()">📖 查看使用指南 & 禅意术语白话对照表</button>
             </div>
           </div>
         </div>

@@ -298,6 +298,32 @@ class LawCoachEngine:
             l7_finding = "纯建设/只读/隔离沙箱操作，无破坏既有重要资产风险。"
             l7_fix = "保持沙箱隔离与五件套回滚协议护航。"
 
+        # ------------------------------------------------------------------
+        # L8 · 沟通契约与定性/定量边界律（Turn-0 防拍脑袋拉满）
+        # ------------------------------------------------------------------
+        has_role_or_user = bool(re.search(r"(面向|给|用户|公众|新手|团队|老板|学生|自己|个人|客户|角色)", raw))
+        has_non_goals = bool(re.search(r"(不做|禁止|不要|严禁|无外部|零外网|不依赖|不得)", raw))
+        has_quant_metric = bool(re.search(r"(\d+\s*(?:分钟|秒|次|个|天|品|条|%|字|px|步|轮)|零丢失|0外链|100%)", raw, re.I))
+        has_data_contract = bool(re.search(r"(localStorage|sqlite|json|csv|markdown|schema|键名|字段|状态|数据结构|保存|存储)", raw, re.I))
+        missing_dims: list[str] = []
+        if not has_role_or_user:
+            missing_dims.append("角色/目标人群(定性)")
+        if not has_non_goals:
+            missing_dims.append("本期不做什么 Non-Goals(定性红线)")
+        if not has_quant_metric:
+            missing_dims.append("可度量数字指标(定量)")
+        if not has_data_contract:
+            missing_dims.append("数据存储/状态契约(代码合同)")
+
+        l8_status = "PASS" if len(missing_dims) <= 1 else ("WARN" if len(missing_dims) <= 2 else "RISK")
+        l8_score = max(56, 98 - len(missing_dims) * 11)
+        l8_finding = (
+            "初期沟通四维契约（角色/定性/定量/数据合同）清晰完备，可直接进入规格冻结。"
+            if not missing_dims
+            else f"初期沟通尚缺 {len(missing_dims)} 项边界定义：{'、'.join(missing_dims)}（靠拍脑袋易致返工）。"
+        )
+        l8_fix = "点击『📐 先设计规格』自动过 30 秒四维契约卡，或在优化版中一键补齐角色、Non-Goals 与定量红线。"
+
         laws = [
             {"law_id": "L1", "name": "确定性与不确定性分离律 (80/20)", "status": l1_status, "score": l1_score, "finding": l1_finding, "actionable_fix": l1_fix},
             {"law_id": "L2", "name": "原子乐高复利律 (防航空母舰)", "status": l2_status, "score": l2_score, "finding": l2_finding, "actionable_fix": l2_fix},
@@ -306,6 +332,7 @@ class LawCoachEngine:
             {"law_id": "L5", "name": "经验资产复利律", "status": l5_status, "score": l5_score, "finding": l5_finding, "actionable_fix": l5_fix},
             {"law_id": "L6", "name": "公众零门槛双语境律 (扩展律)", "status": l6_status, "score": l6_score, "finding": l6_finding, "actionable_fix": l6_fix},
             {"law_id": "L7", "name": "边界可逆与安全底线律 (扩展律)", "status": l7_status, "score": l7_score, "finding": l7_finding, "actionable_fix": l7_fix},
+            {"law_id": "L8", "name": "沟通契约与定性/定量边界律 (Turn-0)", "status": l8_status, "score": l8_score, "finding": l8_finding, "actionable_fix": l8_fix},
         ]
 
         overall_score = round(sum(item["score"] for item in laws) / len(laws))
@@ -321,6 +348,11 @@ class LawCoachEngine:
         else:
             opt_lines.append(f"【核心目标】{raw or '请补充具体要解决的单一微场景目标'}")
 
+        if missing_dims:
+            opt_lines.append(
+                "【四维沟通契约补齐】定性边界：面向普通离线用户，本期坚决不做(Non-Goals)云端账号/支付/后台；"
+                "定量红线：核心闭环 <=2 次点击、外部 CDN==0、刷新数据丢失率==0%；角色权责：人类拍板，代码+沙箱验真。"
+            )
         if det_parts:
             opt_lines.append(f"【80% 确定性代码实现（零误差）】{'；'.join(det_parts[:4])}。")
         if ai_parts:

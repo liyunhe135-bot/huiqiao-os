@@ -73,6 +73,7 @@ class SelectModelRequest(BaseModel):
 
 class SfdpClarifyRequest(BaseModel):
     goal: str = Field(..., min_length=1)
+    depth: str = Field(default="auto", description="auto | quick | deep")
 
 
 class SfdpSpecBuildRequest(BaseModel):
@@ -391,7 +392,7 @@ def create_app(
     @app.post("/sfdp/clarify")
     @app.post("/api/sfdp/clarify")
     def sfdp_clarify(req: SfdpClarifyRequest) -> dict[str, Any]:
-        return svc.sfdp_clarify_and_draft(req.goal)
+        return svc.sfdp_clarify_and_draft(req.goal, depth=req.depth)
 
     @app.post("/sfdp/spec")
     @app.post("/api/sfdp/spec")

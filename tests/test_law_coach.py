@@ -24,7 +24,7 @@ def test_coach_deterministic_seven_laws_oversized_and_jargon_and_destructive(tmp
     )
     res = svc.analyze_with_coach(messy_input, work_mode="execute", use_ai=False)
     assert res["engine_mode"] == "deterministic_rules_only"
-    assert len(res["laws"]) == 7
+    assert len(res["laws"]) == 8
 
     by_id = {lw["law_id"]: lw for lw in res["laws"]}
     # L2 必须抓住航空母舰风险并给出 V0.1 钢丝切片
@@ -37,6 +37,9 @@ def test_coach_deterministic_seven_laws_oversized_and_jargon_and_destructive(tmp
     assert by_id["L6"]["status"] == "WARN"
     # L7 必须在 execute 模式下抓住“删除/覆盖”高危动作红牌告警
     assert by_id["L7"]["status"] == "RISK"
+    # L8 必须抓住缺失定性 Non-Goals / 定量指标 / 数据契约
+    assert by_id["L8"]["status"] in ("WARN", "RISK")
+    assert "四维沟通契约补齐" in res["comparison"]["optimized_prompt"]
     # 必须自动生成高纯度优化版对比文案与分享 Markdown
     assert "V0.1 最小乐高闭环目标" in res["comparison"]["optimized_prompt"]
     assert "原始输入 vs 教练高纯度优化版" in res["share_markdown"]
@@ -59,7 +62,7 @@ def test_coach_optional_15pct_local_ai_and_share_html_preview_api(tmp_path: path
     r_rule = client.post(
         "/api/coach/analyze",
         json={
-            "text": "构建一个《俱舍诵疏》遮字默背本地小程序，内置原文：「诸一切种诸冥灭，拔众生出生死泥」不得改动，localStorage 离线保存，界面默认大众白话。",
+            "text": "面向新手公众构建一个《俱舍诵疏》遮字默背本地小程序，核心闭环<=2次点击，内置原文：「诸一切种诸冥灭，拔众生出生死泥」不得改动，localStorage 离线保存，不做云端登录，界面默认大众白话。",
             "work_mode": "plan",
             "use_ai": False,
         },
@@ -95,3 +98,57 @@ def test_coach_optional_15pct_local_ai_and_share_html_preview_api(tmp_path: path
 
     bad = client.get("/preview/coach/..%2Fsecret.html")
     assert bad.status_code in (400, 404)
+
+
+def test_sfdp_adaptive_quick_vs_deep_dual_view_prd_and_storage_key_contract(tmp_path: pathlib.Path) -> None:
+    svc = HuiQiaoService(
+        db_path=tmp_path / "hq3.db",
+        skills_root=tmp_path / "ws_skills3",
+        memory_dir=tmp_path / "mem_ws3",
+        auto_ollama=False,
+    )
+    # 1. 简单微工具默认触发极速 3 问 + 双视角 PRD（视角 A 对外大白话 + 视角 B 对内代码契约）
+    q_res = svc.sfdp_clarify_and_draft("做一个本地打卡小程序", depth="auto")
+    assert q_res["depth"] == "quick"
+    assert len(q_res["clarify_qa"]) == 3
+    assert "视角 A · 对外大白话 PRD" in q_res["spec"]["spec_md"]
+    assert "Non-Goals" in q_res["spec"]["spec_md"]
+    assert "视角 B · 对内严谨代码契约" in q_res["spec"]["plan_md"]
+
+    # 2. 复杂多域需求或显式 depth='deep' 触发深度专家 5 关拷问
+    d_res = svc.sfdp_clarify_and_draft("做一个带账号登录和报表导出的本地小程序", depth="auto")
+    assert d_res["depth"] == "deep"
+    assert len(d_res["clarify_qa"]) == 5
+
+    # 3. 显式签死 localStorage['jushe_contract_v9'] 键名 -> 自动追加 AC-05 并在沙箱强制机检！
+    k_goal = "做一个本地背诵打卡小程序，使用 localStorage['jushe_contract_v9'] 存储数据"
+    k_clar = svc.sfdp_clarify_and_draft(k_goal, depth="quick")
+    ac_ids = [a["ac_id"] for a in k_clar["spec"]["ac_list"]]
+    assert "AC-05" in ac_ids
+
+    rounds = {"n": 0}
+
+    def contract_model(_msgs: list[dict[str, str]]) -> str:
+        rounds["n"] += 1
+        if rounds["n"] == 1:
+            # 第 1 轮故意写错存储键名 -> 被 AC-05 拦截打回！
+            return (
+                "```html\n<!doctype html><html><head><meta charset='utf-8'><title>俱舍打卡测试</title></head>"
+                "<body><h1>本地背诵打卡器</h1><p>完全离线保存进度记录，零外部依赖。</p>"
+                "<button onclick=\"ok()\">打卡+1</button>"
+                "<script>function ok(){ const v=localStorage.getItem('wrong_key')||'0'; localStorage.setItem('wrong_key', v); }</script>"
+                "</body></html>\n```"
+            )
+        return (
+            "```html\n<!doctype html><html><head><meta charset='utf-8'><title>俱舍打卡测试</title></head>"
+            "<body><h1>本地背诵打卡器</h1><p>完全离线保存进度记录，零外部依赖。</p>"
+            "<button onclick=\"ok()\">打卡+1</button>"
+            "<script>function ok(){ const v=localStorage.getItem('jushe_contract_v9')||'0'; localStorage.setItem('jushe_contract_v9', v); }</script>"
+            "</body></html>\n```"
+        )
+
+    svc._codeact_infer_fn = contract_model
+    built = svc.sfdp_build_from_spec(k_clar["task_id"], goal=k_goal)
+    assert built["status"] == "COMPLETED"
+    assert rounds["n"] == 2
+    assert "AC-05" in built["delivery"]["self_check"]

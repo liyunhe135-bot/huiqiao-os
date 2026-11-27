@@ -833,7 +833,7 @@
       <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" title="统一管理：规划池技能 -> 候选种子 -> 双闸门测试上线 -> 便携包导出" onclick="openTrinityHub('skills')">🧩 技能规划库 <span id="hdrSkillHubCnt" class="tag" style="margin-left:3px;">0</span></button>
       <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" title="管理防偏移与编码踩坑铁律，每次推理自动挂载防复发" onclick="openTrinityHub('experiences')">📚 经验防坑库 <span id="hdrExpCnt" class="tag" style="margin-left:3px;">0</span></button>
       <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" title="查看当前不断档项目会话链、滚动摘要与绑定代码产物" onclick="openTrinityHub('context')">🔗 上下文链</button>
-      <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" title="按七大架构铁律实时自动诊测、输出原始vs高纯度优化对比并一键分享（85%纯规则0显存 + 15%可选本地模型点睛）" onclick="openCoachPanel(false)">🧭 七律教练 <span id="hdrCoachScore" class="tag tag-ok" style="margin-left:3px;">待诊</span></button>
+      <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" title="按八大架构与沟通契约铁律实时自动诊测、输出原始vs高纯度优化对比并一键分享（85%纯规则0显存 + 15%可选本地模型点睛）" onclick="openCoachPanel(false)">🧭 八律教练 <span id="hdrCoachScore" class="tag tag-ok" style="margin-left:3px;">待诊</span></button>
       <button class="btn btn-secondary" id="termModeBtn" style="padding:4px 9px;font-size:11.5px;" title="在『大众科技白话』与『禅意觉悟术语（附白话悬停解释）』之间一键切换" onclick="toggleTerminologyMode()">🌐 语境: 大众白话</button>
       <button class="btn btn-secondary" style="padding:4px 9px;font-size:11.5px;" onclick="toggleGuide()">📖 怎么用</button>
     </div>
@@ -973,26 +973,34 @@
           <div class="delivery-tab-body" id="trinityHubBody"></div>
         </div>
 
-        <!-- PRD v3.0 铸泽 SFDP 规格先行交互设计工坊 -->
+        <!-- PRD v3.0 铸泽 SFDP 规格先行交互设计工坊（双档拷问 + 双视角专家 PRD） -->
         <div class="sfdp-studio" id="sfdpStudio">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <strong style="color:var(--cyber-yellow);font-size:14px;">📐 铸泽 · 规格先行设计工坊（Step 1~2：对齐设计思路，确认后再写代码）</strong>
-            <button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="closeSfdpStudio()">关闭工坊</button>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <strong style="color:var(--cyber-yellow);font-size:14px;">📐 铸泽 · 专家级双视角 PRD 工坊（先签四维契约，再写代码）</strong>
+              <span id="sfdpDepthBadge" class="tag tag-ok">⚡ 极速 3 问</span>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="openSfdpStudio('quick')" title="轻量微工具：3 个关键问题 + 智能默认值，3 秒拍板">⚡ 极速 3 问</button>
+              <button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="openSfdpStudio('deep')" title="复杂场景：完整 5 关深度专家拷问（PR-FAQ、四重风险、Non-Goals、定量红线、代码契约 Schema 与 BDD 负例）">🎓 深度专家 5 关</button>
+              <button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="copyExternalPrd()" title="一键复制『视角 A · 对外大白话 PRD』直接发给团队或客户对齐">📋 复制对外 PRD</button>
+              <button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="closeSfdpStudio()">关闭工坊</button>
+            </div>
           </div>
           <div id="sfdpQaBox" style="margin-bottom:10px;"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-bottom:10px;">
             <div>
-              <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:4px;">需求规格书 <code>spec.md</code>（可直接编辑微调设计要求）</div>
-              <textarea id="sfdpSpecMd" rows="7" style="font-size:12px;font-family:var(--mono);"></textarea>
+              <div style="font-size:11.5px;color:var(--cyber-yellow);margin-bottom:4px;font-weight:700;">视角 A · 对外大白话 PRD <code>spec.md</code>（PR-FAQ / 角色 / Non-Goals / 定量指标）</div>
+              <textarea id="sfdpSpecMd" rows="8" style="font-size:12px;font-family:var(--mono);"></textarea>
             </div>
             <div>
-              <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:4px;">技术边界与验收标准 <code>plan.md & AC</code>（构建后沙箱自动逐条核验）</div>
-              <textarea id="sfdpPlanMd" rows="7" style="font-size:12px;font-family:var(--mono);"></textarea>
+              <div style="font-size:11.5px;color:var(--emerald);margin-bottom:4px;font-weight:700;">视角 B · 对内严谨代码契约 <code>plan.md & BDD AC</code>（80/20 / Schema 键名 · 沙箱强检）</div>
+              <textarea id="sfdpPlanMd" rows="8" style="font-size:12px;font-family:var(--mono);"></textarea>
             </div>
           </div>
           <div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;">
-            <button class="btn btn-secondary" onclick="refreshSfdpSpec()">🔄 按问答刷新规格</button>
-            <button class="btn" id="sfdpBuildBtn" onclick="runSfdpBuild()">🔨 确认规格 · 启动沙箱构建与五件套交付</button>
+            <button class="btn btn-secondary" onclick="refreshSfdpSpec()">🔄 按问答刷新双视角 PRD</button>
+            <button class="btn" id="sfdpBuildBtn" onclick="runSfdpBuild()">🔨 确认契约 · 启动沙箱构建与五件套交付</button>
           </div>
         </div>
 
@@ -1315,7 +1323,7 @@
       }));
     }
 
-    async function openSfdpStudio() {
+    async function openSfdpStudio(depth = "auto") {
       const goal = document.getElementById("taskInput").value.trim();
       if (!goal) {
         alert("请先在上方输入框填写您的想法或需求，再点击『📐 先设计规格』！");
@@ -1324,16 +1332,20 @@
       selectMode("plan");
       const btn = document.getElementById("designBtn");
       btn.disabled = true;
-      btn.textContent = "📐 生成规格中...";
+      btn.textContent = "📐 生成双视角 PRD...";
       try {
         const res = await fetch("/api/sfdp/clarify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ goal })
+          body: JSON.stringify({ goal, depth })
         });
         const data = await res.json();
         currentSfdpTaskId = data.task_id;
         currentSfdpGoal = goal;
+        const badge = document.getElementById("sfdpDepthBadge");
+        if (badge) {
+          badge.textContent = data.depth === "deep" ? "🎓 深度专家 5 关拷问（6大国际PRD铁律）" : "⚡ 极速 3 问（3秒可拍板）";
+        }
         const qaBox = document.getElementById("sfdpQaBox");
         qaBox.innerHTML = (data.clarify_qa || []).map((q, idx) =>
           `<div class="qa-row">
@@ -1347,6 +1359,17 @@
       } finally {
         btn.disabled = false;
         btn.textContent = "📐 先设计规格";
+      }
+    }
+
+    async function copyExternalPrd() {
+      const txt = document.getElementById("sfdpSpecMd").value.trim();
+      if (!txt) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(txt);
+        alert("📋 已复制『视角 A · 对外大白话 PRD』到剪贴板，可直接发给客户或团队评审！");
+      } else {
+        prompt("请复制以下对外大白话 PRD：", txt);
       }
     }
 
@@ -1794,7 +1817,7 @@
       const txtEl = document.getElementById("coachLiveText");
       const warnLaws = (d.laws || []).filter(x => x.status !== "PASS").map(x => `${x.law_id}(${x.status})`);
       txtEl.innerHTML =
-        `<strong style="color:var(--cyber-yellow);">🧭 七律自动体检：${d.overall_score}分 (${escapeHtml(d.grade)})</strong> ` +
+        `<strong style="color:var(--cyber-yellow);">🧭 八律自动体检：${d.overall_score}分 (${escapeHtml(d.grade)})</strong> ` +
         `· 绿${d.pass_count} / 黄${d.warn_count} / 红${d.risk_count}` +
         (warnLaws.length ? ` · 建议关注: <code>${escapeHtml(warnLaws.join(", "))}</code>` : " · 七律全绿，适合直接开干！");
     }
@@ -1865,7 +1888,7 @@
         </div>
 
         ${aiDeepHtml}
-        <div style="font-size:12px;color:var(--cyber-yellow);font-weight:700;margin:8px 0 6px;">📊 七大架构铁律逐项管控台账（L1–L7）</div>
+        <div style="font-size:12px;color:var(--cyber-yellow);font-weight:700;margin:8px 0 6px;">📊 八大架构与沟通契约铁律逐项管控台账（L1–L8）</div>
         ${lawsHtml}
       `;
     }

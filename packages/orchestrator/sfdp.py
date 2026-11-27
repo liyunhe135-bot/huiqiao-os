@@ -104,65 +104,112 @@ class ChuZeSfdpEngine:
             clauses = [s.strip() for s in re.split(r"[。！？\n]+", goal) if len(s.strip()) >= 4][:6]
         return clauses[:10]
 
-    def generate_clarify_questions(self, goal: str, *, task_id: str | None = None) -> dict[str, Any]:
-        """阶段 ① 澄清门：无损解析全部需求子项与必保原文，生成 <=4 个高针对性澄清项。"""
+    @staticmethod
+    def _is_complex_goal(goal: str) -> bool:
+        """判断是否触发深度 5 关专家拷问（多业务域或长需求自动切深度模式）。"""
+        domain_pats = (
+            r"登录|注册|账号|权限",
+            r"支付|收费|订单|商城",
+            r"后台|管理端|大屏|erp|crm",
+            r"小程序|网页|界面|前端",
+            r"知识库|ai|智能|检索|工作流",
+            r"导出|报表|统计|财务|对账",
+        )
+        hits = sum(1 for p in domain_pats if re.search(p, goal, re.I))
+        return hits >= 2 or len(goal) >= 120
+
+    @staticmethod
+    def _extract_contract_storage_key(text: str) -> str | None:
+        m = re.search(r"localStorage(?:\[\s*|\.(?:getItem|setItem)\(\s*)['\"]([a-zA-Z0-9_.-]{3,48})['\"]", text)
+        return m.group(1) if m else None
+
+    def generate_clarify_questions(
+        self,
+        goal: str,
+        *,
+        task_id: str | None = None,
+        depth: str = "auto",
+    ) -> dict[str, Any]:
+        """阶段 ① 自适应双档澄清门（极速 3 问 ⇄ 深度专家 5 关 · 融合国际 PRD 6 大铁律与四维沟通契约）。"""
         tid = task_id or new_id("tsk")
         is_app = self._is_web_app_goal(goal)
         clauses = self._extract_feature_clauses(goal)
         quotes = self._extract_verbatim_quotes(goal)
         clause_summary = " ； ".join(clauses) if clauses else goal.strip()
 
-        if is_app:
+        resolved_depth = (
+            depth.lower()
+            if depth.lower() in ("quick", "deep")
+            else ("deep" if self._is_complex_goal(goal) else "quick")
+        )
+
+        quote_hint = (
+            f"；必保逐字原文 {len(quotes)} 处（严禁改动：{' / '.join(q[:22] + '…' if len(q) > 22 else q for q in quotes)}）"
+            if quotes
+            else ""
+        )
+
+        if resolved_depth == "deep":
             questions = [
                 {
                     "id": f"qa_{tid}_1",
-                    "question": "核心交付形态与离线要求？",
-                    "answer": "单文件 100% 离线可运行的本地 HTML 交互应用（零外部 CDN，事件函数与 DOM 100% 闭环校验）",
+                    "question": "【① 角色定位 & PR-FAQ 价值】谁在什么痛点下使用？人类/AI/代码三方权责？",
+                    "answer": f"目标用户：需要离线高效解决「{goal[:42]}」的用户；您拍价值与红线，AI 写初版方案，确定性代码+M08沙箱铁面验真。",
                 },
                 {
                     "id": f"qa_{tid}_2",
-                    "question": "已提取的全部核心功能条款（可补充或修改）？",
-                    "answer": clause_summary,
+                    "question": "【② 定性四重风险 & 公众白话】哪些术语需转大白话？如何控制本地算力与安全风险？",
+                    "answer": "界面与按钮默认采用大众白话（文化/专业词附通俗注释或切换）；纯离线沙箱运行零外网，不破坏已有文件。",
                 },
                 {
                     "id": f"qa_{tid}_3",
-                    "question": "本地数据持久化与逐字原文约束？",
-                    "answer": (
-                        f"使用 localStorage 自动持久化状态；必保逐字原文共 {len(quotes)} 处（严禁删改：{' / '.join(q[:24] + '…' if len(q) > 24 else q for q in quotes)}）"
-                        if quotes
-                        else "使用浏览器本地 localStorage 自动持久化进度与记录，刷新重开零丢失"
-                    ),
+                    "question": "【③ 故事地图 V0.1 钢丝切片 & Non-Goals】本期只打穿哪 <=3 个核心点，坚决不做哪几项？",
+                    "answer": f"V0.1 核心条款：{clause_summary} ｜ 本期坚决不做(Non-Goals)：云端账号登录、付费支付、多端服务器同步。",
                 },
                 {
                     "id": f"qa_{tid}_4",
-                    "question": "界面视觉与公众易用性风格？",
-                    "answer": "黑曜底色 + 赛博金高对比禅意科技风，按钮默认使用清晰中文白话说明，手机与桌面自适应",
+                    "question": "【④ 定量及格指标】操作步数、离线外链与数据零丢失的硬数字标准？",
+                    "answer": "核心交互 <= 2 次点击完成；外部 CDN 引用数 == 0；刷新页面本地数据丢失率 == 0%。",
+                },
+                {
+                    "id": f"qa_{tid}_5",
+                    "question": "【⑤ 代码契约 Schema & BDD 负例断言】数据如何存储、状态枚举与绝对禁止的坏情况？",
+                    "answer": (
+                        f"单文件 HTML + localStorage 持久化（状态枚举：unseen|learning|mastered）{quote_hint}；负例：严禁悬空未定义 onclick 函数或删改必保原文。"
+                        if is_app
+                        else f"Python 纯标准库产出结构化 JSON/Markdown{quote_hint}；负例：严禁空输出或未捕获异常。"
+                    ),
                 },
             ]
         else:
             questions = [
                 {
                     "id": f"qa_{tid}_1",
-                    "question": "期望产出的核心文件类型是什么？",
-                    "answer": "可在本地离线复验的 Python 脚本与结构化结果文件（JSON / Markdown）",
-                },
-                {
-                    "id": f"qa_{tid}_2",
-                    "question": "已提取的核心需求边界（可补充）？",
+                    "question": "【① 核心目标 & 功能条款（定性）】本次 V0.1 要打穿哪些具体功能？",
                     "answer": clause_summary,
                 },
                 {
+                    "id": f"qa_{tid}_2",
+                    "question": "【② 边界红线 & 定量指标】本期坚决不做(Non-Goals)与及格硬标准？",
+                    "answer": "Non-Goals：不做云端登录/复杂后台；定量红线：核心闭环 <=2 次点击、外部 CDN==0、按钮默认大众白话。",
+                },
+                {
                     "id": f"qa_{tid}_3",
-                    "question": "如何判定结果验收通过？",
-                    "answer": "在 M08 隔离沙箱内实跑 exit_code=0 且生成非空目标产物文件",
+                    "question": "【③ 代码契约 & 客观验收】存储持久化、必保原文与沙箱断言要求？",
+                    "answer": (
+                        f"单文件 100% 离线 HTML + localStorage 自动保存{quote_hint}；沙箱机检 HTML 闭合且 onclick 函数零悬空。"
+                        if is_app
+                        else f"Python 纯标准库离线运行{quote_hint}；M08 沙箱实跑 exit_code==0 且落盘非空产物。"
+                    ),
                 },
             ]
 
         saved_qa = self.store.save_clarify_qa(tid, questions)
-        draft_spec = self.build_spec_workshop(tid, goal, saved_qa, freeze=False)
+        draft_spec = self.build_spec_workshop(tid, goal, saved_qa, freeze=False, depth=resolved_depth)
         return {
             "task_id": tid,
             "goal": goal,
+            "depth": resolved_depth,
             "clarify_qa": saved_qa,
             "spec": draft_spec,
         }
@@ -176,8 +223,9 @@ class ChuZeSfdpEngine:
         custom_spec_md: str | None = None,
         custom_plan_md: str | None = None,
         freeze: bool = False,
+        depth: str = "auto",
     ) -> dict[str, Any]:
-        """阶段 ② 规格工坊：生成或更新 spec.md / plan.md / tasks / 可观察 AC（带负例）。"""
+        """阶段 ② 专家级双视角 PRD 工坊：视角 A（对外大白话 PR-FAQ/定性定量/Non-Goals）+ 视角 B（对内严谨代码契约/Schema/BDD 断言）。"""
         if qa_items is not None:
             saved_qa = self.store.save_clarify_qa(task_id, qa_items[:5])
         else:
@@ -185,8 +233,13 @@ class ChuZeSfdpEngine:
 
         is_app = self._is_web_app_goal(goal)
         deliverable_name = "index.html" if is_app else "solution_output.json"
-
+        clauses = self._extract_feature_clauses(goal)
         qa_md = "\n".join(f"- **{item['question']}**：{item['answer']}" for item in saved_qa) or "- 采用默认离线标准规格"
+
+        # 提取用户在原始目标或自定义 plan_md 中显式签死的 localStorage 键名契约
+        explicit_storage_key = self._extract_contract_storage_key(goal) or (
+            self._extract_contract_storage_key(custom_plan_md) if custom_plan_md else None
+        )
 
         if is_app:
             quotes = self._extract_verbatim_quotes(goal)
@@ -194,21 +247,21 @@ class ChuZeSfdpEngine:
                 {
                     "ac_id": "AC-01",
                     "title": "产出闭合且事件函数零悬空的 index.html",
-                    "given_when_then": "给定沙箱工作区，当构建完成时，存在非空闭合 index.html 且全部 onclick/onchange 事件函数均在 <script> 中真实定义",
-                    "negative_case": "负例：禁止空壳文本、未闭合标签或按钮调用了未定义的 JS 函数（防功能性伪造）",
+                    "given_when_then": "Given 沙箱构建完成 When 扫描 HTML 与 <script> Then 存在闭合 index.html 且所有 onclick/onchange 函数均已真实定义",
+                    "negative_case": "负例：禁止空壳文本、未闭合标签或按钮调用未定义的 JS 函数（防功能性伪造）",
                     "check_kind": "html_file_valid",
                 },
                 {
                     "ac_id": "AC-02",
                     "title": "100% 离线清净无外部 CDN 依赖",
-                    "given_when_then": "给定生成的 index.html，当扫描全部 src/href 属性时，则外部 http/https 引用数为 0",
+                    "given_when_then": "Given 断网离线环境 When 扫描全部 src/href 属性 Then 外部 http/https 引用数 == 0",
                     "negative_case": "负例：一旦引用任何外部 CDN 脚本或样式表即判定不合规",
                     "check_kind": "zero_external_cdn",
                 },
                 {
                     "ac_id": "AC-03",
                     "title": "具备真实可点击交互与 localStorage 读写闭环",
-                    "given_when_then": "给定用户操作需求，当检查脚本逻辑时，同时包含事件处理绑定与 localStorage 读写持久化",
+                    "given_when_then": "Given 用户交互操作 When 检查脚本逻辑 Then 同时具备点击事件处理与 localStorage 读写持久化",
                     "negative_case": "负例：禁止只有静态展示没有状态读写逻辑的死页面",
                     "check_kind": "interactive_stateful",
                 },
@@ -218,10 +271,21 @@ class ChuZeSfdpEngine:
                     {
                         "ac_id": "AC-04",
                         "title": "用户指定关键原文 100% 逐字无损落盘",
-                        "given_when_then": f"给定用户指明的 {len(quotes)} 处必保引号原文，当扫描产物文本时，必须逐字精确匹配零篡改",
+                        "given_when_then": f"Given 用户指明的 {len(quotes)} 处必保引号原文 When 扫描产物文本 Then 必须逐字精确匹配零篡改",
                         "negative_case": "负例：擅自缩写、改写或遗漏用户指定的必保原文视为失败",
                         "check_kind": "verbatim_quotes_intact",
                         "required_quotes": quotes,
+                    }
+                )
+            if explicit_storage_key:
+                ac_list.append(
+                    {
+                        "ac_id": "AC-05",
+                        "title": f"代码契约存储键 `{explicit_storage_key}` 严格对齐",
+                        "given_when_then": f"Given 对内契约约定的存储键 `{explicit_storage_key}` When 扫描 index.html 脚本 Then 必须显式读写该键名",
+                        "negative_case": f"负例：私自改名或未读写 `{explicit_storage_key}` 导致前后版本数据失联视为违约",
+                        "check_kind": "contract_storage_key",
+                        "required_key": explicit_storage_key,
                     }
                 )
         else:
@@ -229,14 +293,14 @@ class ChuZeSfdpEngine:
                 {
                     "ac_id": "AC-01",
                     "title": "沙箱客观执行零报错通过",
-                    "given_when_then": "给定目标任务脚本，当在 M08 T2 离线沙箱执行时，则 exit_code == 0",
+                    "given_when_then": "Given 目标任务脚本 When 在 M08 T2 离线沙箱执行 Then exit_code == 0",
                     "negative_case": "负例：抛未捕获异常或超时视为未收敛",
                     "check_kind": "sandbox_exit_zero",
                 },
                 {
                     "ac_id": "AC-02",
                     "title": "生成真实非空交付产物文件",
-                    "given_when_then": "给定构建完成的工作区，当扫描产物目录时，则至少存在 1 个非空成果文件",
+                    "given_when_then": "Given 构建完成的工作区 When 扫描产物目录 Then 至少存在 1 个非空成果文件",
                     "negative_case": "负例：仅口头回答未产出可复查文件视为失败",
                     "check_kind": "any_artifact_nonempty",
                 },
@@ -250,19 +314,40 @@ class ChuZeSfdpEngine:
             f"1. **{ac['ac_id']} {ac['title']}**\n   - 正例：{ac['given_when_then']}\n   - {ac['negative_case']}"
             for ac in ac_list
         )
+        clauses_md = "\n".join(f"- {c}" for c in clauses) or f"- {goal}"
 
+        # 视角 A（对外/老板/公众大白话 PRD：PR-FAQ + 角色定位 + 定性 Non-Goals + 定量及格线）
         spec_md = custom_spec_md or (
-            f"# 需求规格说明书 (spec.md)\n\n"
-            f"## 1. 核心目标 (What & Why)\n- **用户原始诉求**：{goal}\n- **目标交付物**：`{deliverable_name}`\n\n"
-            f"## 2. 澄清门已拍板约束\n{qa_md}\n\n"
-            f"## 3. 可观察验收标准 (Acceptance Criteria · 冻结后只读)\n{ac_md}\n"
+            f"# 视角 A · 对外大白话 PRD (spec.md · 融合 6 大国际铁律)\n\n"
+            f"## 1. PR-FAQ 一句话价值 & 角色定位\n"
+            f"- **用户原始诉求**：{goal}\n"
+            f"- **目标交付物**：`{deliverable_name}`（100% 本地离线可独立运行）\n"
+            f"- **角色权责**：您拍价值与红线 ｜ 本机模型写实现 ｜ 确定性代码与 M08 沙箱客观验真\n\n"
+            f"## 2. 定性边界（V0.1 钢丝切片 & 本期坚决不做 Non-Goals）\n"
+            f"**本期 V0.1 必达功能条款**：\n{clauses_md}\n"
+            f"- **Non-Goals（本期坚决不做）**：不做云端账号系统、不做商业支付、不依赖外网 CDN、不堆砌非核心花哨功能。\n\n"
+            f"## 3. 定量及格红线\n"
+            f"- 核心交互操作 `<= 2` 次点击 ｜ 外部 CDN 引用数 `== 0` ｜ 刷新页面本地数据丢失率 `== 0%` ｜ 公众默认白话零门槛。\n\n"
+            f"## 4. 澄清门已拍板共识\n{qa_md}\n"
         )
 
+        # 视角 B（对内/工程师/AI 严谨代码契约：80/20 分工 + Schema/状态枚举 + 不变量 + BDD 负例断言）
+        schema_block = (
+            f"- **持久化存储键契约**：`localStorage[{explicit_storage_key!r}]`（若未自定义则使用应用唯一前缀键，含 JSON 读写容错）\n"
+            f"- **核心状态枚举**：`unseen | learning | mastered`（所有 DOM 按钮事件 `onclick` 必须与 `<script>` 函数名 1:1 匹配）\n"
+            if is_app
+            else "- **输入输出契约**：Python 3.11 纯标准库，文件读写显式 `encoding='utf-8'`，产出结构化 JSON/Markdown。\n"
+        )
         plan_md = custom_plan_md or (
-            f"# 技术构建方案 (plan.md)\n\n"
-            f"- **安全边界**：在 `M08` `T2_OS_RESTRICTED` 断网隔离沙箱内构建与验证；\n"
-            f"- **依赖约束**：{'单文件内联 HTML5 + CSS3 + 原生 JS + localStorage，零外部 CDN' if is_app else 'Python 3.11 纯标准库，零外网请求'}；\n"
-            f"- **收敛策略**：构建后由独立沙箱核验器逐条检查 `AC`，未达标项以追加修复任务方式自动收敛。\n"
+            f"# 视角 B · 对内严谨代码契约 & BDD 验收 (plan.md)\n\n"
+            f"## 1. 铁律 1 · 80/20 确定性与 AI 分工边界\n"
+            f"- **80% 确定性代码负责**：存储读写、计数统计、状态切换、筛选计时、沙箱断言检验（零误差）；\n"
+            f"- **20% AI 精准负责**：依据本契约生成高质完整源码与自然语义文案。\n\n"
+            f"## 2. 接口与数据 Schema 契约（Design by Contract）\n"
+            f"- **安全边界**：`M08 T2_OS_RESTRICTED` 断网隔离沙箱构建与只读核验；\n"
+            f"{schema_block}"
+            f"- **收敛策略**：构建后由独立沙箱核验器逐条检查以下 BDD 断言，未达标项只追加修复任务，严禁篡改 AC。\n\n"
+            f"## 3. BDD 客观验收硬断言（Given-When-Then · 冻结后只读）\n{ac_md}\n"
         )
 
         tasks = [
@@ -337,6 +422,12 @@ class ChuZeSfdpEngine:
             "        missing_q = [q[:24] for q in req_q if q not in txt]\n"
             "        ok = p.is_file() and len(missing_q) == 0\n"
             "        detail = f'checked_quotes={len(req_q)}, missing={missing_q}'\n"
+            "    elif kind == 'contract_storage_key':\n"
+            "        p = pathlib.Path('index.html')\n"
+            "        txt = p.read_text(encoding='utf-8', errors='ignore') if p.is_file() else ''\n"
+            "        rk = str(ac.get('required_key') or '')\n"
+            "        ok = p.is_file() and bool(rk) and (rk in txt)\n"
+            "        detail = f'required_storage_key={rk}, found={rk in txt}'\n"
             "    else:\n"
             "        non_empty = [f.name for f in files if f.stat().st_size > 0]\n"
             "        ok = len(non_empty) > 0\n"

@@ -1008,8 +1008,8 @@ class HuiQiaoService:
         return {"active_model": self.active_local_model, "models": self.available_local_models}
 
     # --- PRD v3.0 铸泽 SFDP（先规格设计 -> 后沙箱构建与五件套交付）服务入口 ---
-    def sfdp_clarify_and_draft(self, goal: str) -> dict[str, Any]:
-        return self.sfdp.generate_clarify_questions(goal)
+    def sfdp_clarify_and_draft(self, goal: str, *, depth: str = "auto") -> dict[str, Any]:
+        return self.sfdp.generate_clarify_questions(goal, depth=depth)
 
     def sfdp_update_spec(
         self,
